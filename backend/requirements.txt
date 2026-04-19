@@ -1,0 +1,14 @@
+# Backend Dependencies
+# This file specifies the Python packages required for the Django backend.
+# The versions will need to be updated as we add functionality (e.g., websockets).
+
+# For initial setup:
+django==4.2.0
+djangorestframework==3.14.0
+psycopg2-binary==2.9.9
+
+# For real-time communication
+django-rest-framework-simplejwt==3.1
+django-cors-headers==4.3.1
+django-environ==0.11.0
+python-dotenv==1.0.0

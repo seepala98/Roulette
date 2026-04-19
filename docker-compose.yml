@@ -1,0 +1,50 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: roulette_db
+    restart: always
+    environment:
+      POSTGRES_USER: rouletteuser
+      POSTGRES_PASSWORD: strongpassword
+      POSTGRES_DB: roulette_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/app/backend/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rouletteuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Django Backend API Service
+  backend:
+    build:
+      context: ./infra
+      dockerfile: Dockerfile.backend
+    container_name: roulette_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://rouletteuser:strongpassword@db:5432/roulette_db
+      SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 3. React Frontend Service
+  frontend:
+    build:
+      context: ./infra
+      dockerfile: Dockerfile.frontend
+    container_name: roulette_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

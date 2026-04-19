@@ -1,0 +1,33 @@
+# infra/Dockerfile.frontend
+# Uses a multi-stage build to keep the final image small.
+
+# --- Stage 1: Build the React application ---
+FROM node:20-slim AS builder
+
+WORKDIR /app/frontend
+
+# Copy package files first
+COPY package.json .
+COPY package-lock.json .
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the source code
+COPY src ./src
+
+# Build the application (Assumes CRA setup builds to a 'build' folder)
+RUN npm run build
+
+# --- Stage 2: Serve the static assets using Nginx ---
+FROM nginx:alpine
+
+# Remove default Nginx index.html
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy the built static files from the builder stage
+COPY --from=builder /app/frontend/build /usr/share/nginx/html
+
+# Expose port 80 and run Nginx
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
