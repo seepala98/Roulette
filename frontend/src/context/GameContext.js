@@ -1,4 +1,4 @@
-# app/context/GameContext.js
+// app/context/GameContext.js
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getSessionState, runRound } from '../services/gameService';

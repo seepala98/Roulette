@@ -17,12 +17,17 @@ class GameCycleIntegrationTest(TestCase):
     def setUp(self):
         # Setup a dedicated session for testing
         self.session = Session.objects.create(status='WAITING', max_players=4)
-        # Use unique IDs for each test run to avoid constraint violations
-        self.player1 = Player.objects.create(session=self.session, player_unique_id=f"P1_{uuid.uuid4().hex[:8]}", player_name="Alice", initial_budget=1000, current_chips=1000)
-        self.player2 = Player.objects.create(session=self.session, player_unique_id=f"P2_{uuid.uuid4().hex[:8]}", player_name="Bob", initial_budget=1000, current_chips=1000)
+        self.player1 = Player.objects.create(session=self.session, player_unique_id="P1", player_name="Alice", initial_budget=1000, current_chips=1000)
+        self.player2 = Player.objects.create(session=self.session, player_unique_id="P2", player_name="Bob", initial_budget=1000, current_chips=1000)
 
     def test_full_round_cycle_success(self):
-        # --- ARRANGE (No pre-existing bets - the viewset will create them) ---
+        # --- ARRANGE (Bets) ---
+        bet_alice = Bet.objects.create(
+            player=self.player1, session=self.session, round_number=1, bet_type='STRAIGHT_UP', amount=10, selection='17'
+        )
+        bet_bob = Bet.objects.create(
+            player=self.player2, session=self.session, round_number=1, bet_type='RED', amount=50, selection='RED'
+        )
 
         # --- ACT (Simulated Round Run) ---
         # Mock the random winning number for a predictable test outcome
@@ -36,15 +41,12 @@ class GameCycleIntegrationTest(TestCase):
             from roulette_api.views import GameCycleViewSet
             viewset = GameCycleViewSet()
 
-            # Mock the request object to pass the bets - USE ACTUAL PLAYER IDS FROM SETUP
+            # Mock the request object to pass the bets
             mock_request = type('MockRequest', (object,), {
-                'data': {
-                    'session_id': str(self.session.session_id),
-                    'bets': [
-                        {'player_id': self.player1.player_unique_id, 'bet_type': 'STRAIGHT_UP', 'amount': 10, 'selection': '17'},
-                        {'player_id': self.player2.player_unique_id, 'bet_type': 'RED', 'amount': 50, 'selection': 'RED'}
-                    ]
-                }
+                'data': {'bets': [
+                    {'player_id': self.player1.player_unique_id, 'bet_type': 'STRAIGHT_UP', 'amount': 10, 'selection': '17'},
+                    {'player_id': self.player2.player_unique_id, 'bet_type': 'RED', 'amount': 50, 'selection': 'RED'}
+                ]}
             })()
 
             # We bypass the full DRF request cycle for simplicity in the test file
@@ -56,20 +58,14 @@ class GameCycleIntegrationTest(TestCase):
         self.assertTrue(History.objects.filter(session=self.session, round_number=1).exists())
 
         # 2. Check Player 1 (Alice): Bet 17, won 35:1 payout.
-        # Initial: 1000. Bet: -10. Win: +350. Plus stake returned: +10. Final: 1350.
-        # Refresh from database to get updated chip count
-        self.player1.refresh_from_db()
-        self.assertEqual(self.player1.current_chips, 1350)
+        # Initial: 1000. Bet: -10. Win: +350. Final: 1340.
+        self.assertEqual(self.player1.current_chips, 1340)
 
         # 3. Check Player 2 (Bob): Bet 50, won 0 (since 17 is neither R nor B in simple mock).
         # Initial: 1000. Bet: -50. Loss: 0. Final: 950.
-        # Refresh from database to get updated chip count
-        self.player2.refresh_from_db()
         self.assertEqual(self.player2.current_chips, 950)
 
         # 4. Check Session State Advancement
-        # Refresh from database to get updated round number
-        self.session.refresh_from_db()
         self.assertEqual(self.session.current_round, 1)
 
 # Note: Actual Django test execution requires properly setting up fixtures and mocking dependencies.

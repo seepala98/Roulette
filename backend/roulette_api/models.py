@@ -22,6 +22,7 @@ class Session(models.Model):
     class Meta:
         db_table = 'sessions'
         verbose_name = "Game Session"
+        app_label = 'roulette_api'
 
     def __str__(self):
         return f"Session {str(self.session_id)[:8]} ({self.status})"
@@ -39,6 +40,7 @@ class Player(models.Model):
 
     class Meta:
         db_table = 'players'
+        app_label = 'roulette_api'
 
     def __str__(self):
         return f"{self.player_name} in {self.session.session_id}"
@@ -55,6 +57,7 @@ class Bet(models.Model):
 
     class Meta:
         db_table = 'bets'
+        app_label = 'roulette_api'
         # Enforce unique constraint per player per round
         unique_together = ('player', 'session', 'round_number')
         # Indexing for fast querying of bets for a round

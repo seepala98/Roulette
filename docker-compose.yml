@@ -23,8 +23,8 @@ services:
   # 2. Django Backend API Service
   backend:
     build:
-      context: ./infra
-      dockerfile: Dockerfile.backend
+      context: .
+      dockerfile: ./infra/Dockerfile.backend
     container_name: roulette_backend
     ports:
       - "8000:8000"
@@ -35,11 +35,11 @@ services:
       db:
         condition: service_healthy
 
-  # 3. React Frontend Service
+  # 3. Simple Frontend Service (serving static HTML)
   frontend:
     build:
-      context: ./infra
-      dockerfile: Dockerfile.frontend
+      context: .
+      dockerfile: ./infra/Dockerfile.frontend.simple
     container_name: roulette_frontend
     ports:
       - "3000:80"

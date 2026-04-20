@@ -1,4 +1,4 @@
-# app/components/RouletteTable.js
+// app/components/RouletteTable.js
 
 import React, { useState, useEffect, useCallback } from 'react';
 // Assuming we have a hook or context to manage global game state and connection
@@ -94,7 +94,7 @@ const RouletteTable = React.memo(({ initialBets, onSpinComplete }) => {
             {/* Winner Display */}
             {winnerNumber !== null && (
                 <div className="winner-display">
-                    The ball landed on: <span style={{ color: COLORS[winning_number % 2 === 0 ? 'RED' : 'BLACK'] }}>{winnerNumber}</span>
+                    The ball landed on: <span style={{ color: COLORS[winnerNumber % 2 === 0 ? 'RED' : 'BLACK'] }}>{winnerNumber}</span>
                 </div>
             )}
         </div>

@@ -1,0 +1,83 @@
+/* Basic styling for the American Roulette App */
+.game-wrapper {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
+
+.betting-panel {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.current-bets-list {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.spin-button {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+.spin-button:hover:not(:disabled) {
+    background: #b71c1c;
+}
+
+.spin-button:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+}
+
+.bet-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.bet-form select,
+.bet-form input {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.bet-form button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.bet-form button:hover {
+    background: #1565c0;
+}
+
+.error-message {
+    background: #ffebee;
+    color: #c62828;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.table-area {
+    background: #2e7d32;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 400px;
+    color: white;
+}

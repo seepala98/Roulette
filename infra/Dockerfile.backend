@@ -5,14 +5,13 @@ FROM python:3.11-slim
 WORKDIR /app/backend
 
 # Copy only the requirements file to leverage Docker caching
-COPY requirements.txt .
+COPY backend/requirements.txt .
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- FIX APPLIED HERE ---
-# The context is ./backend. The API module is directly inside the backend folder.
-COPY roulette_api /app/backend/roulette_api
+# Copy the entire backend directory
+COPY backend/ .
 
 # Set environment variables (optional, but good practice)
 ENV PYTHONUNBUFFERED 1
@@ -21,4 +20,4 @@ ENV PYTHONUNBUFFERED 1
 EXPOSE 8000
 
 # Command to run the server (Using Gunicorn is best practice)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "roulette_api.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "roulette_project.wsgi:application"]

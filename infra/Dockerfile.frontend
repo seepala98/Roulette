@@ -7,14 +7,17 @@ FROM node:20-slim AS builder
 WORKDIR /app/frontend
 
 # Copy package files first
-COPY package.json .
-COPY package-lock.json .
+COPY ../frontend/package.json .
+
+# Set environment variable to fix OpenSSL issue in Node.js 20
+ENV NODE_OPTIONS=--openssl-legacy-provider
 
 # Install dependencies
 RUN npm install
 
 # Copy the rest of the source code
-COPY src ./src
+COPY ../frontend/src ./src
+COPY ../frontend/public ./public
 
 # Build the application (Assumes CRA setup builds to a 'build' folder)
 RUN npm run build

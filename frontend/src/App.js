@@ -1,6 +1,8 @@
-# App.js (Main Component)
+/*
+ * App.js (Main Component)
+ */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import RouletteTable from './components/RouletteTable';
 import { GameProvider, useGameContext } from './context/GameContext';
 import './App.css'; // Assume this file holds global styling
@@ -72,7 +74,7 @@ const BoardUI = () => {
             </div>
         </div>
     );
-}
+};
 
 // Note: BetInputComponent will be defined here or in a separate file.
 // I'm using a placeholder for now.
@@ -118,6 +120,6 @@ const AppWrapper = () => {
             <BoardUI />
         </GameProvider>
     );
-}
+};
 
 export default AppWrapper;

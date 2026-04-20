@@ -1,0 +1,16 @@
+# infra/Dockerfile.frontend.simple
+# Simple Dockerfile to serve static frontend files
+
+FROM nginx:alpine
+
+# Remove default Nginx content
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy our static frontend files
+COPY ../frontend/build/ /usr/share/nginx/html/
+
+# Expose port 80
+EXPOSE 80
+
+# Run Nginx
+CMD ["nginx", "-g", "daemon off;"]

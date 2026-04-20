@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>American Roulette Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .bet-item {
+            background: #ecf0f1;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #ebf5fb;
+            border-radius: 4px;
+        }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>American Roulette Game</h1>
+        
+        <div id="game-status">
+            <p>Status: <span id="status-text">Loading...</span></p>
+        </div>
+        
+        <div id="betting-section">
+            <h2>Place Your Bets</h2>
+            <form id="bet-form">
+                <div class="form-group">
+                    <label for="bet-type">Bet Type:</label>
+                    <select id="bet-type">
+                        <option value="STRAIGHT_UP">Straight Up (Specific Number)</option>
+                        <option value="RED">Red</option>
+                        <option value="BLACK">Black</option>
+                        <option value="EVEN">Even</option>
+                        <option value="ODD">Odd</option>
+                        <option value="1-18">Low (1-18)</option>
+                        <option value="19-36">High (19-36)</option>
+                        <option value="DOZEN_1">First Dozen (1-12)</option>
+                        <option value="DOZEN_2">Second Dozen (13-24)</option>
+                        <option value="DOZEN_3">Third Dozen (25-36)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="selection">Selection:</label>
+                    <input type="text" id="selection" placeholder="e.g., 17, RED, 1-12" value="17">
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">Amount (chips):</label>
+                    <input type="number" id="amount" min="1" value="10">
+                </div>
+                
+                <button type="submit">Place Bet</button>
+            </form>
+            
+            <div id="current-bets">
+                <h3>Current Bets:</h3>
+                <div id="bets-list">
+                    <p>No bets placed yet.</p>
+                </div>
+            </div>
+            
+            <button id="spin-button" disabled>Spin the Wheel</button>
+        </div>
+        
+        <div id="game-results" class="results" style="display: none;">
+            <h2>Round Results</h2>
+            <div id="results-content"></div>
+            <button id="new-round-button">Play Another Round</button>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE = 'http://localhost:8000/api';
+        let sessionId = null;
+        let currentBets = [];
+        
+        // DOM Elements
+        const statusText = document.getElementById('status-text');
+        const betForm = document.getElementById('bet-form');
+        const spinButton = document.getElementById('spin-button');
+        const betsList = document.getElementById('bets-list');
+        const gameResults = document.getElementById('game-results');
+        const resultsContent = document.getElementById('results-content');
+        const newRoundButton = document.getElementById('new-round-button');
+        
+        // Initialize the game
+        async function initGame() {
+            try {
+                statusText.textContent = 'Creating session...';
+                const response = await fetch(`${API_BASE}/sessions/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to create session: ${response.status}`);
+                }
+                
+                const session = await response.json();
+                sessionId = session.session_id;
+                statusText.textContent = `Session created: ${sessionId.substring(0, 8)}...`;
+                updateSpinButtonState();
+            } catch (error) {
+                statusText.textContent = `Error: ${error.message}`;
+                statusText.className = 'error';
+            }
+        }
+        
+        // Add a bet
+        betForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const betType = document.getElementById('bet-type').value;
+            const selection = document.getElementById('selection').value.trim();
+            const amount = parseInt(document.getElementById('amount').value);
+            
+            if (!selection || isNaN(amount) || amount <= 0) {
+                alert('Please enter valid selection and amount');
+                return;
+            }
+            
+            const bet = {
+                bet_type: betType,
+                amount: amount,
+                selection: selection
+            };
+            
+            currentBets.push(bet);
+            updateBetsDisplay();
+            updateSpinButtonState();
+            
+            // Reset form
+            betForm.reset();
+            document.getElementById('selection').value = '17';
+            document.getElementById('amount').value = '10';
+        });
+        
+        // Spin the wheel
+        spinButton.addEventListener('click', async () => {
+            if (currentBets.length === 0) {
+                alert('Please place at least one bet');
+                return;
+            }
+            
+            spinButton.disabled = true;
+            spinButton.textContent = 'Spinning...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/sessions/${sessionId}/place_bets/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bets: currentBets.map(bet => ({
+                            player_id: 'web_player_' + Math.random().toString(36).substr(2, 9),
+                            ...bet
+                        }))
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to place bets: ${response.status}`);
+                }
+                
+                const betResponse = await response.json();
+                
+                // Run the round
+                const roundResponse = await fetch(`${API_BASE}/sessions/${sessionId}/run_round/`, {
+                    method: 'POST'
+                });
+                
+                if (!roundResponse.ok) {
+                    throw new Error(`Failed to run round: ${roundResponse.status}`);
+                }
+                
+                const roundResult = await roundResponse.json();
+                displayResults(roundResult);
+                
+                // Clear bets for next round
+                currentBets = [];
+                updateBetsDisplay();
+                updateSpinButtonState();
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                spinButton.disabled = false;
+                spinButton.textContent = 'Spin the Wheel';
+            }
+        });
+        
+        // Start new round
+        newRoundButton.addEventListener('click', () => {
+            gameResults.style.display = 'none';
+            statusText.textContent = 'Ready for next round';
+            statusText.className = '';
+        });
+        
+        // Update UI functions
+        function updateBetsDisplay() {
+            if (currentBets.length === 0) {
+                betsList.innerHTML = '<p>No bets placed yet.</p>';
+            } else {
+                betsList.innerHTML = currentBets.map((bet, index) => 
+                    `<div class="bet-item">
+                        <strong>Bet ${index + 1}:</strong> ${bet.bet_type} on ${bet.selection} (${bet.amount} chips)
+                    </div>`).join('');
+            }
+        }
+        
+        function updateSpinButtonState() {
+            spinButton.disabled = currentBets.length === 0 || !sessionId;
+        }
+        
+        function displayResults(result) {
+            gameResults.style.display = 'block';
+            
+            let html = `
+                <p><strong>Winning Number:</strong> ${result.winning_number}</p>
+                <p><strong>Round:</strong> ${result.round_number}</p>
+                <p><strong>Total Payout:</strong> ${result.total_payout.toFixed(2)} chips</p>
+                <h3>Bet Results:</h3>
+            `;
+            
+            result.bet_results.forEach(betResult => {
+                const won = betResult.payout > 0;
+                html += `
+                    <div class="bet-item">
+                        <span class="${won ? 'success' : 'error'}">
+                            ${betResult.bet_type} on ${betResult.selection}: 
+                            ${won ? 'WON' : 'LOST'} 
+                            (${betResult.amount} chips bet, ${betResult.payout.toFixed(2)} chips payout)
+                        </span>
+                    </div>
+                `;
+            });
+            
+            resultsContent.innerHTML = html;
+        }
+        
+        // Initialize game on load
+        initGame();
+    </script>
+</body>
+</html>
