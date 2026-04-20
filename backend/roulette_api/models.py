@@ -31,8 +31,7 @@ class Session(models.Model):
 class Player(models.Model):
     """Tracks connected players and their chip balances within a session."""
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='players')
-    # Using a unique identifier for a player within a session, replacing UUID for simplicity
-    player_unique_id = models.CharField(max_length=100, unique=True)
+    player_unique_id = models.CharField(max_length=100)
     player_name = models.CharField(max_length=100)
     initial_budget = models.IntegerField(default=1000)
     current_chips = models.IntegerField(default=1000)
@@ -41,6 +40,7 @@ class Player(models.Model):
     class Meta:
         db_table = 'players'
         app_label = 'roulette_api'
+        unique_together = ('session', 'player_unique_id')
 
     def __str__(self):
         return f"{self.player_name} in {self.session.session_id}"
@@ -58,9 +58,7 @@ class Bet(models.Model):
     class Meta:
         db_table = 'bets'
         app_label = 'roulette_api'
-        # Enforce unique constraint per player per round
-        unique_together = ('player', 'session', 'round_number')
-        # Indexing for fast querying of bets for a round
+        # No unique constraint - players can place multiple bets per round
         indexes = [
             models.Index(fields=['session', 'round_number']),
         ]

@@ -3,303 +3,616 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>American Roulette Game</title>
+    <title>American Roulette - Casino Style</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-        }
-        .form-group {
-            margin: 15px 0;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, select {
-            width: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
+            min-height: 100vh;
+            color: #fff;
             padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
         }
-        button {
-            background-color: #3498db;
+        .game-container { max-width: 1200px; margin: 0 auto; }
+        header {
+            text-align: center;
+            padding: 10px;
+            background: linear-gradient(135deg, #2c1810, #4a3728);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 2px solid #d4af37;
+        }
+        header h1 { color: #d4af37; font-size: 1.5rem; }
+        
+        .game-status {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .status-item { text-align: center; }
+        .status-item label { display: block; font-size: 0.65rem; color: #aaa; }
+        .status-item .value { font-size: 1rem; font-weight: bold; color: #4ade80; }
+        
+        .roulette-table {
+            background: linear-gradient(180deg, #1a472a 0%, #0f2d1a 100%);
+            border: 8px solid #8b4513;
+            border-radius: 10px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .dozen-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            margin-bottom: 6px;
+        }
+        .dozen-cell {
+            padding: 8px;
+            text-align: center;
+            background: linear-gradient(145deg, #7c3aed, #5b21b6);
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 9px;
+            border: 2px solid transparent;
+        }
+        .dozen-cell:hover { border-color: #a78bfa; }
+        .dozen-cell.has-bet { border-color: #fbbf24; }
+        
+        .main-grid {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .left-bets {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .zero-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #22c55e;
             color: white;
-            padding: 10px 20px;
-            border: none;
+            border: 2px solid #fff;
+            font-weight: bold;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .zero-btn:hover { transform: scale(1.1); }
+        
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 2px;
+            flex: 1;
+            position: relative;
+        }
+        
+        .number-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            min-height: 32px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .number-cell.red { background: linear-gradient(145deg, #dc2626, #991b1b); color: #fff; }
+        .number-cell.black { background: linear-gradient(145deg, #1f2937, #000); color: #fff; }
+        
+        .number-cell:hover { transform: scale(1.05); z-index: 10; }
+        
+        .column-bets {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .col-btn {
+            width: 36px;
+            height: 32px;
+            background: linear-gradient(145deg, #059669, #047857);
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
-            margin: 5px;
+            font-size: 9px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            border: 2px solid transparent;
         }
-        button:hover {
-            background-color: #2980b9;
+        .col-btn:hover { border-color: #34d399; }
+        .col-btn.has-bet { border-color: #fbbf24; }
+        
+        .click-zone {
+            position: absolute;
+            z-index: 20;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
         }
-        button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
+        .number-grid:hover .click-zone,
+        .click-zone:hover { opacity: 1; background: rgba(255,255,255,0.15); }
+        
+        .chip-marker {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #d4af37, #b8860b);
+            color: #000;
+            font-weight: bold;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 25;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
+        
+        .even-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 2px;
+            margin-top: 4px;
+        }
+        .even-cell {
+            padding: 6px 3px;
+            text-align: center;
+            background: linear-gradient(145deg, #374151, #1f2937);
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 8px;
+            border: 2px solid transparent;
+        }
+        .even-cell:hover { border-color: #6b7280; }
+        .even-cell.has-bet { border-color: #fbbf24; }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            background: rgba(0,0,0,0.4);
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .chip-selector { flex: 1; min-width: 120px; }
+        .chip-selector h3 { margin-bottom: 4px; color: #d4af37; font-size: 0.8rem; }
+        .chip-options { display: flex; gap: 4px; }
+        .chip-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #666;
+            background: linear-gradient(145deg, #d4af37, #b8860b);
+            color: #000;
+            font-weight: bold;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .chip-btn.active { border-color: #fff; box-shadow: 0 0 8px rgba(212,175,55,0.6); }
+        
+        .action-buttons { display: flex; gap: 6px; }
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn-spin { background: linear-gradient(145deg, #dc2626, #b91c1c); color: white; }
+        .btn-spin:disabled { background: #4b5563; cursor: not-allowed; }
+        .btn-clear { background: linear-gradient(145deg, #4b5563, #374151); color: white; }
+        
+        .current-bets {
+            background: rgba(0,0,0,0.4);
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .current-bets h3 { margin-bottom: 6px; color: #d4af37; font-size: 0.9rem; }
+        .bets-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 80px; overflow-y: auto; }
         .bet-item {
-            background: #ecf0f1;
-            padding: 10px;
-            margin: 10px 0;
+            background: linear-gradient(145deg, #374151, #1f2937);
+            padding: 4px 8px;
             border-radius: 4px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-left: 2px solid #d4af37;
         }
-        .results {
-            margin-top: 20px;
-            padding: 15px;
-            background: #ebf5fb;
-            border-radius: 4px;
+        .bet-item .amt { color: #fbbf35; font-weight: bold; }
+        .bet-item .win { color: #4ade80; font-size: 10px; }
+        .bet-item .rm {
+            background: #ef4444;
+            border: none;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            font-size: 9px;
+            color: white;
         }
-        .success { color: #27ae60; }
-        .error { color: #e74c3c; }
+        
+        .results { display: none; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 6px; text-align: center; }
+        .results.show { display: block; }
+        .winner-number { font-size: 2.5rem; font-weight: bold; margin: 8px 0; }
+        .winner-number.red { color: #ef4444; }
+        .winner-number.black { color: #fff; }
+        .winner-number.green { color: #22c55e; }
+        
+        .loading { display: none; text-align: center; padding: 12px; }
+        .loading.show { display: block; }
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #333;
+            border-top: 3px solid #d4af37;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .bet-info { font-size: 9px; color: #888; margin-top: 6px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>American Roulette Game</h1>
+    <div class="game-container">
+        <header><h1>American Roulette</h1></header>
         
-        <div id="game-status">
-            <p>Status: <span id="status-text">Loading...</span></p>
+        <div class="game-status">
+            <div class="status-item"><label>Session</label><div class="value" id="session-id">Loading...</div></div>
+            <div class="status-item"><label>Round</label><div class="value" id="round-num">0</div></div>
+            <div class="status-item"><label>Chips</label><div class="value" id="player-chips">1000</div></div>
+            <div class="status-item"><label>Bet</label><div class="value" id="total-bet">0</div></div>
+            <div class="status-item"><label>Win</label><div class="value" id="potential-win">0</div></div>
+            <div class="status-item"><label>Winner</label><div class="value" id="last-winner">-</div></div>
         </div>
         
-        <div id="betting-section">
-            <h2>Place Your Bets</h2>
-            <form id="bet-form">
-                <div class="form-group">
-                    <label for="bet-type">Bet Type:</label>
-                    <select id="bet-type">
-                        <option value="STRAIGHT_UP">Straight Up (Specific Number)</option>
-                        <option value="RED">Red</option>
-                        <option value="BLACK">Black</option>
-                        <option value="EVEN">Even</option>
-                        <option value="ODD">Odd</option>
-                        <option value="1-18">Low (1-18)</option>
-                        <option value="19-36">High (19-36)</option>
-                        <option value="DOZEN_1">First Dozen (1-12)</option>
-                        <option value="DOZEN_2">Second Dozen (13-24)</option>
-                        <option value="DOZEN_3">Third Dozen (25-36)</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="selection">Selection:</label>
-                    <input type="text" id="selection" placeholder="e.g., 17, RED, 1-12" value="17">
-                </div>
-                
-                <div class="form-group">
-                    <label for="amount">Amount (chips):</label>
-                    <input type="number" id="amount" min="1" value="10">
-                </div>
-                
-                <button type="submit">Place Bet</button>
-            </form>
+        <div class="roulette-table">
+            <div class="dozen-row">
+                <div class="dozen-cell" data-bet="1st12" data-type="DOZEN">1st 12</div>
+                <div class="dozen-cell" data-bet="2nd12" data-type="DOZEN">2nd 12</div>
+                <div class="dozen-cell" data-bet="3rd12" data-type="DOZEN">3rd 12</div>
+            </div>
             
-            <div id="current-bets">
-                <h3>Current Bets:</h3>
-                <div id="bets-list">
-                    <p>No bets placed yet.</p>
+            <div class="main-grid">
+                <div class="left-bets">
+                    <div class="zero-btn" data-bet="0" data-type="STRAIGHT_UP">0</div>
+                    <div class="zero-btn" data-bet="00" data-type="STRAIGHT_UP">00</div>
+                </div>
+                
+                <div class="number-grid" id="grid"></div>
+                
+                <div class="column-bets">
+                    <div class="col-btn" data-bet="col1" data-type="COLUMN">2:1</div>
+                    <div class="col-btn" data-bet="col2" data-type="COLUMN">2:1</div>
+                    <div class="col-btn" data-bet="col3" data-type="COLUMN">2:1</div>
                 </div>
             </div>
             
-            <button id="spin-button" disabled>Spin the Wheel</button>
+            <div class="even-row">
+                <div class="even-cell" data-bet="1-18" data-type="LO">1-18</div>
+                <div class="even-cell" data-bet="EVEN" data-type="EVEN">EVEN</div>
+                <div class="even-cell" data-bet="RED" data-type="RED">RED</div>
+                <div class="even-cell" data-bet="BLACK" data-type="BLACK">BLACK</div>
+                <div class="even-cell" data-bet="ODD" data-type="ODD">ODD</div>
+                <div class="even-cell" data-bet="19-36" data-type="HI">19-36</div>
+            </div>
         </div>
         
-        <div id="game-results" class="results" style="display: none;">
-            <h2>Round Results</h2>
-            <div id="results-content"></div>
-            <button id="new-round-button">Play Another Round</button>
+        <div class="controls">
+            <div class="chip-selector">
+                <h3>Chip</h3>
+                <div class="chip-options">
+                    <button class="chip-btn active" data-value="5">5</button>
+                    <button class="chip-btn" data-value="10">10</button>
+                    <button class="chip-btn" data-value="25">25</button>
+                    <button class="chip-btn" data-value="50">50</button>
+                    <button class="chip-btn" data-value="100">100</button>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-clear" id="clear-btn">Clear</button>
+                <button class="btn btn-spin" id="spin-btn" disabled>Spin</button>
+            </div>
         </div>
+        
+        <div class="current-bets">
+            <h3>Bets (<span id="bet-count">0</span>)</h3>
+            <div class="bets-list" id="bets-list"></div>
+        </div>
+        
+        <div class="loading" id="loading"><div class="spinner"></div></div>
+        
+        <div class="results" id="results">
+            <h2>Result</h2>
+            <div class="winner-number" id="winner-number">0</div>
+            <div id="payouts"></div>
+            <button class="btn btn-spin" id="new-round-btn">Next</button>
+        </div>
+        
+        <div class="bet-info">Click number = Straight | Edge = Split | Corner = Corner | Between rows = Line/Street</div>
     </div>
-
+    
     <script>
-        // API Configuration
         const API_BASE = 'http://localhost:8000/api';
-        let sessionId = null;
-        let currentBets = [];
+        const RED = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+        // Roulette table: 3 rows x 12 columns
+        // Top row: 3,6,9,...36 | Middle: 2,5,8...35 | Bottom: 1,4,7...34
+        const LAYOUT = [
+            [3,6,9,12,15,18,21,24,27,30,33,36],  // row 0 (top)
+            [2,5,8,11,14,17,20,23,26,29,32,35],  // row 1 (middle)  
+            [1,4,7,10,13,16,19,22,25,28,31,34]   // row 2 (bottom)
+        ];
+        // Street (horizontal): 3 numbers in a row (1,2,3 at bottom)
+        // Line (2 rows): 6 numbers (1-6, 7-12, etc)
+        // Split, Corner: click zones between numbers
+        const COL_MAPS = ['col1', 'col2', 'col3'];
+        const PAYOUTS = { STRAIGHT_UP: 35, SPLIT: 17, STREET: 11, CORNER: 8, LINE: 5, DOZEN: 2, COLUMN: 2, LO: 1, HI: 1, EVEN: 1, ODD: 1, RED: 1, BLACK: 1 };
         
-        // DOM Elements
-        const statusText = document.getElementById('status-text');
-        const betForm = document.getElementById('bet-form');
-        const spinButton = document.getElementById('spin-button');
-        const betsList = document.getElementById('bets-list');
-        const gameResults = document.getElementById('game-results');
-        const resultsContent = document.getElementById('results-content');
-        const newRoundButton = document.getElementById('new-round-button');
+        let sessionId = null, chip = 5, bets = [], chips = 1000;
+        const el = id => document.getElementById(id);
         
-        // Initialize the game
-        async function initGame() {
-            try {
-                statusText.textContent = 'Creating session...';
-                const response = await fetch(`${API_BASE}/sessions/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+        function initGrid() {
+            const grid = el('grid');
+            grid.innerHTML = '';
+            const cellW = 100/12, cellH = 100/3;
+            
+            // Render number grid: 3 rows x 12 columns
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 12; col++) {
+                    const num = LAYOUT[row][col];
+                    const cell = document.createElement('div');
+                    cell.className = 'number-cell ' + (RED.includes(num) ? 'red' : 'black');
+                    cell.textContent = num;
+                    cell.dataset.num = num;
+                    cell.addEventListener('click', () => placeBet('STRAIGHT_UP', num, chip));
+                    grid.appendChild(cell);
+                }
+            }
+            
+            // HORIZONTAL SPLITS - between columns in same row
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 11; col++) {
+                    const hSplit = document.createElement('div');
+                    hSplit.className = 'click-zone';
+                    hSplit.style.cssText = `left:${(col + 1) * cellW - 1}%;top:${row * cellH}%;width:1%;height:${cellH}%;border-left:3px solid rgba(236,72,153,0.9);z-index:30;`;
+                    const a = LAYOUT[row][col], b = LAYOUT[row][col+1];
+                    hSplit.title = 'Split: ' + (a < b ? a + ',' + b : b + ',' + a);
+                    hSplit.onclick = (e) => { e.stopPropagation(); placeBet('SPLIT', (a < b ? a + ',' + b : b + ',' + a), chip); };
+                    grid.appendChild(hSplit);
+                }
+            }
+            
+            // Click zones - between ALL adjacent rows (0-1 and 1-2)
+            for (let rowBound = 0; rowBound < 2; rowBound++) {
+                const topRow = rowBound;
+                const bottomRow = rowBound + 1;
                 
-                if (!response.ok) {
-                    throw new Error(`Failed to create session: ${response.status}`);
+                // STREET: 3 horizontal numbers in same row
+                for (let col = 0; col < 10; col++) {
+                    const street = document.createElement('div');
+                    street.className = 'click-zone';
+                    street.style.cssText = `left:${col * cellW}%;top:${(bottomRow) * cellH - 1}%;width:${cellW * 3}%;height:1.5%;background:rgba(251,191,36,0.4);z-index:30;`;
+                    const nums = [LAYOUT[topRow][col], LAYOUT[topRow][col+1], LAYOUT[topRow][col+2]].sort((a,b) => a-b);
+                    street.title = 'Street: ' + nums.join('-');
+                    street.onclick = (e) => { e.stopPropagation(); placeBet('STREET', nums.join(','), chip); };
+                    grid.appendChild(street);
                 }
                 
-                const session = await response.json();
-                sessionId = session.session_id;
-                statusText.textContent = `Session created: ${sessionId.substring(0, 8)}...`;
-                updateSpinButtonState();
-            } catch (error) {
-                statusText.textContent = `Error: ${error.message}`;
-                statusText.className = 'error';
+                // LINE: between 2 rows (6 numbers)
+                for (let col = 0; col < 11; col++) {
+                    const line = document.createElement('div');
+                    line.className = 'click-zone';
+                    line.style.cssText = `left:${(col + 1) * cellW}%;top:${(bottomRow) * cellH - 1}%;width:${cellW * 2}%;height:1.5%;background:rgba(168,85,247,0.4);z-index:30;`;
+                    const nums = [...LAYOUT[topRow].slice(col, col+2), ...LAYOUT[bottomRow].slice(col, col+2)].sort((a,b) => a-b);
+                    line.title = 'Line: ' + nums.join(',');
+                    line.onclick = (e) => { e.stopPropagation(); placeBet('LINE', nums.join(','), chip); };
+                    grid.appendChild(line);
+                }
+                
+                // VERTICAL SPLIT: between two rows (same column)
+                for (let col = 0; col < 12; col++) {
+                    const split = document.createElement('div');
+                    split.className = 'click-zone';
+                    split.style.cssText = `left:${col * cellW}%;top:${(bottomRow) * cellH - 1}%;width:${cellW}%;height:1.5%;border-top:3px solid rgba(236,72,153,0.9);z-index:30;`;
+                    const a = LAYOUT[topRow][col], b = LAYOUT[bottomRow][col];
+                    split.title = 'Split: ' + (a < b ? a + ',' + b : b + ',' + a);
+                    split.onclick = (e) => { e.stopPropagation(); placeBet('SPLIT', (a < b ? a + ',' + b : b + ',' + a), chip); };
+                    grid.appendChild(split);
+                }
+                
+                // CORNER: 4 numbers (2 cols x 2 rows)
+                for (let col = 0; col < 11; col++) {
+                    const corner = document.createElement('div');
+                    corner.className = 'click-zone';
+                    corner.style.cssText = `left:${(col + 1) * cellW - 1}%;top:${(bottomRow) * cellH - 1}%;width:2%;height:1.5%;background:rgba(59,130,246,0.5);border-radius:50%;z-index:30;`;
+                    const c = [LAYOUT[topRow][col], LAYOUT[topRow][col+1], LAYOUT[bottomRow][col], LAYOUT[bottomRow][col+1]].sort((a,b) => a-b);
+                    corner.title = 'Corner: ' + c.join(',');
+                    corner.onclick = (e) => { e.stopPropagation(); placeBet('CORNER', c.join(','), chip); };
+                    grid.appendChild(corner);
+                }
+            }
+            
+            // Bottom zones: STREETS (yellow) on top, LINES (purple) below
+            // STREETS first (yellow) - positioned higher
+            for (let col = 0; col < 12; col++) {
+                const vStreet = document.createElement('div');
+                vStreet.className = 'click-zone';
+                vStreet.style.cssText = `left:${col * cellW}%;top:${cellH * 3}%;width:${cellW}%;height:3%;background:rgba(251,191,36,0.8);z-index:30;cursor:pointer;border-radius:2px;`;
+                const nums = [LAYOUT[0][col], LAYOUT[1][col], LAYOUT[2][col]].sort((a,b) => a-b);
+                vStreet.title = 'Street: ' + nums.join(',');
+                vStreet.onclick = (e) => { e.stopPropagation(); placeBet('STREET', nums.join(','), chip); };
+                grid.appendChild(vStreet);
+            }
+            
+            // LINES (purple) - positioned BELOW the streets
+            for (let col = 0; col < 11; col++) {
+                const vLine = document.createElement('div');
+                vLine.className = 'click-zone';
+                vLine.style.cssText = `left:${(col + 1) * cellW + 1}%;top:${cellH * 3 + 3.2}%;width:${cellW * 1.8}%;height:2.5%;background:rgba(168,85,247,0.8);z-index:25;cursor:pointer;border-radius:2px;`;
+                const nums = [...LAYOUT[0].slice(col, col+2), ...LAYOUT[1].slice(col, col+2), ...LAYOUT[2].slice(col, col+2)].sort((a,b) => a-b);
+                vLine.title = 'Line: ' + nums.join(',');
+                vLine.onclick = (e) => { e.stopPropagation(); placeBet('LINE', nums.join(','), chip); };
+                grid.appendChild(vLine);
             }
         }
         
-        // Add a bet
-        betForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const betType = document.getElementById('bet-type').value;
-            const selection = document.getElementById('selection').value.trim();
-            const amount = parseInt(document.getElementById('amount').value);
-            
-            if (!selection || isNaN(amount) || amount <= 0) {
-                alert('Please enter valid selection and amount');
-                return;
-            }
-            
-            const bet = {
-                bet_type: betType,
-                amount: amount,
-                selection: selection
-            };
-            
-            currentBets.push(bet);
-            updateBetsDisplay();
-            updateSpinButtonState();
-            
-            // Reset form
-            betForm.reset();
-            document.getElementById('selection').value = '17';
-            document.getElementById('amount').value = '10';
-        });
-        
-        // Spin the wheel
-        spinButton.addEventListener('click', async () => {
-            if (currentBets.length === 0) {
-                alert('Please place at least one bet');
-                return;
-            }
-            
-            spinButton.disabled = true;
-            spinButton.textContent = 'Spinning...';
-            
-            try {
-                const response = await fetch(`${API_BASE}/sessions/${sessionId}/place_bets/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bets: currentBets.map(bet => ({
-                            player_id: 'web_player_' + Math.random().toString(36).substr(2, 9),
-                            ...bet
-                        }))
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to place bets: ${response.status}`);
-                }
-                
-                const betResponse = await response.json();
-                
-                // Run the round
-                const roundResponse = await fetch(`${API_BASE}/sessions/${sessionId}/run_round/`, {
-                    method: 'POST'
-                });
-                
-                if (!roundResponse.ok) {
-                    throw new Error(`Failed to run round: ${roundResponse.status}`);
-                }
-                
-                const roundResult = await roundResponse.json();
-                displayResults(roundResult);
-                
-                // Clear bets for next round
-                currentBets = [];
-                updateBetsDisplay();
-                updateSpinButtonState();
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-                spinButton.disabled = false;
-                spinButton.textContent = 'Spin the Wheel';
-            }
-        });
-        
-        // Start new round
-        newRoundButton.addEventListener('click', () => {
-            gameResults.style.display = 'none';
-            statusText.textContent = 'Ready for next round';
-            statusText.className = '';
-        });
-        
-        // Update UI functions
-        function updateBetsDisplay() {
-            if (currentBets.length === 0) {
-                betsList.innerHTML = '<p>No bets placed yet.</p>';
+        function placeBet(type, sel, amt) {
+            if (chips < amt) { alert('Not enough chips!'); return; }
+            const key = type + '_' + sel;
+            const existing = bets.find(b => b.key === key);
+            if (existing) {
+                if (chips < amt) { alert('Not enough chips!'); return; }
+                existing.amount += amt;
+                chips -= amt;
             } else {
-                betsList.innerHTML = currentBets.map((bet, index) => 
-                    `<div class="bet-item">
-                        <strong>Bet ${index + 1}:</strong> ${bet.bet_type} on ${bet.selection} (${bet.amount} chips)
-                    </div>`).join('');
+                bets.push({ key, bet_type: type, selection: String(sel), amount: amt, player_id: 'player1' });
+                chips -= amt;
             }
+            updateUI();
         }
         
-        function updateSpinButtonState() {
-            spinButton.disabled = currentBets.length === 0 || !sessionId;
+        function getPotential() {
+            return bets.reduce((s, b) => s + b.amount * (PAYOUTS[b.bet_type] || 1), 0);
         }
         
-        function displayResults(result) {
-            gameResults.style.display = 'block';
+        function updateUI() {
+            el('player-chips').textContent = chips;
+            el('total-bet').textContent = bets.reduce((s, b) => s + b.amount, 0);
+            el('potential-win').textContent = getPotential();
+            el('bet-count').textContent = bets.length;
+            el('spin-btn').disabled = bets.length === 0;
             
-            let html = `
-                <p><strong>Winning Number:</strong> ${result.winning_number}</p>
-                <p><strong>Round:</strong> ${result.round_number}</p>
-                <p><strong>Total Payout:</strong> ${result.total_payout.toFixed(2)} chips</p>
-                <h3>Bet Results:</h3>
-            `;
+            el('bets-list').innerHTML = bets.length ? bets.map(b => {
+                const win = b.amount * (PAYOUTS[b.bet_type] || 1);
+                return `<div class="bet-item">
+                    <span>${b.bet_type}</span>
+                    <span>${b.selection}</span>
+                    <span class="amt">$${b.amount}</span>
+                    <span class="win">→$${win}</span>
+                    <button class="rm" onclick="rmBet('${b.key}')">×</button>
+                </div>`;
+            }).join('') : '<span style="color:#888;font-size:11px;">Click numbers, edges, corners</span>';
             
-            result.bet_results.forEach(betResult => {
-                const won = betResult.payout > 0;
-                html += `
-                    <div class="bet-item">
-                        <span class="${won ? 'success' : 'error'}">
-                            ${betResult.bet_type} on ${betResult.selection}: 
-                            ${won ? 'WON' : 'LOST'} 
-                            (${betResult.amount} chips bet, ${betResult.payout.toFixed(2)} chips payout)
-                        </span>
-                    </div>
-                `;
+            updateChips();
+            updateStates();
+        }
+        
+        function updateChips() {
+            document.querySelectorAll('.chip-marker').forEach(m => m.remove());
+            bets.filter(b => b.bet_type === 'STRAIGHT_UP').forEach(b => {
+                const cell = el('grid').querySelector(`[data-num="${b.selection}"]`);
+                if (cell) {
+                    const m = document.createElement('div');
+                    m.className = 'chip-marker';
+                    m.textContent = b.amount;
+                    m.style.left = '50%'; m.style.top = '50%';
+                    m.style.transform = 'translate(-50%, -50%)';
+                    cell.style.position = 'relative';
+                    cell.appendChild(m);
+                }
             });
-            
-            resultsContent.innerHTML = html;
         }
         
-        // Initialize game on load
-        initGame();
+        function updateStates() {
+            document.querySelectorAll('.dozen-cell, .col-btn, .even-cell, .zero-btn').forEach(c => {
+                c.classList.toggle('has-bet', bets.some(b => b.bet_type === c.dataset.type && b.selection === c.dataset.bet));
+            });
+        }
+        
+        window.rmBet = function(key) {
+            const i = bets.findIndex(b => b.key === key);
+            if (i > -1) { chips += bets[i].amount; bets.splice(i, 1); updateUI(); }
+        };
+        
+        el('clear-btn').onclick = () => { chips += bets.reduce((s, b) => s + b.amount, 0); bets = []; updateUI(); };
+        
+        document.querySelectorAll('.chip-btn').forEach(b => b.onclick = () => {
+            document.querySelectorAll('.chip-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            chip = parseInt(b.dataset.value);
+        });
+        
+        document.querySelectorAll('.dozen-cell, .col-btn, .even-cell, .zero-btn').forEach(c => {
+            c.onclick = () => placeBet(c.dataset.type, c.dataset.bet, chip);
+        });
+        
+        async function spinWheel() {
+            if (!sessionId || !bets.length) return;
+            el('loading').classList.add('show');
+            el('results').classList.remove('show');
+            el('spin-btn').disabled = true;
+            try {
+                await fetch(API_BASE + '/sessions/' + sessionId + '/place_bets/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bets })
+                });
+                const r = await fetch(API_BASE + '/sessions/' + sessionId + '/run_round/', { method: 'POST' });
+                const result = await r.json();
+                showResult(result);
+            } catch (e) { alert('Error: ' + e.message); el('loading').classList.remove('show'); el('spin-btn').disabled = false; }
+        }
+        
+        function showResult(r) {
+            el('loading').classList.remove('show');
+            el('results').classList.add('show');
+            const w = r.winning_number;
+            el('winner-number').textContent = w;
+            el('winner-number').className = 'winner-number ' + (w === 0 ? 'green' : RED.includes(w) ? 'red' : 'black');
+            el('last-winner').textContent = w;
+            el('round-num').textContent = r.round_number;
+            
+            let total = 0;
+            el('payouts').innerHTML = (r.bet_results || []).map(br => {
+                const won = br.payout > 0;
+                if (won) total += br.amount + br.payout;
+                return `<div style="background:${won?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'};padding:4px 8px;border-radius:4px;margin:2px;font-size:11px;">
+                    ${br.bet_type} ${br.selection} $${br.amount} → $${br.amount + br.payout} ${won?'✓':'✗'}
+                </div>`;
+            }).join('') + `<p style="margin-top:6px;font-size:12px;"><strong>Return: $${total}</strong></p>`;
+            
+            chips = r.player_chips ? Object.values(r.player_chips)[0] || chips + total : chips + total;
+            el('player-chips').textContent = chips;
+        }
+        
+        el('new-round-btn').onclick = () => { el('results').classList.remove('show'); bets = []; updateUI(); };
+        document.getElementById('spin-btn').onclick = spinWheel;
+        
+        async function init() {
+            try {
+                const r = await fetch(API_BASE + '/sessions/', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const s = await r.json();
+                sessionId = s.session_uuid;
+                el('session-id').textContent = sessionId.substring(0, 8) + '...';
+                initGrid();
+                updateUI();
+            } catch (e) { el('session-id').textContent = 'Error'; console.error(e); }
+        }
+        
+        init();
     </script>
 </body>
 </html>

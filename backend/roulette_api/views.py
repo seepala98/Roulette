@@ -55,18 +55,104 @@ def calculate_payout(bet_type, selection, winning_number, bet_amount):
             else:
                 return 0.0, 0.0
 
-    # Dozen bets: 1-12, 13-24, 25-36
+# Dozen bets: 1-12, 13-24, 25-36
     if bet_type == 'DOZEN':
         try:
-            # selection is a string like '1-12'
-            low, high = map(int, selection.split('-'))
+            if selection == '1st12':
+                low, high = 1, 12
+            elif selection == '2nd12':
+                low, high = 13, 24
+            elif selection == '3rd12':
+                low, high = 25, 36
+            else:
+                low, high = map(int, selection.split('-'))
         except (ValueError, AttributeError):
             return 0.0, 0.0
         if low <= winning_number <= high and winning_number != 0:
             return 2.0, 1.0
         else:
             return 0.0, 0.0
-
+    
+    # Column bets: col1, col2, col3 (2:1 payout)
+    # On the roulette table, the 2:1 column bets are:
+    # col1 (left box): 3,6,9,12,15,18,21,24,27,30,33,36
+    # col2 (middle box): 2,5,8,11,14,17,20,23,26,29,32,35
+    # col3 (right box): 1,4,7,10,13,16,19,22,25,28,31,34
+    if bet_type == 'COLUMN':
+        if winning_number == 0:
+            return 0.0, 0.0
+        col1_nums = {3,6,9,12,15,18,21,24,27,30,33,36}
+        col2_nums = {2,5,8,11,14,17,20,23,26,29,32,35}
+        col3_nums = {1,4,7,10,13,16,19,22,25,28,31,34}
+        if selection == 'col1' and winning_number in col1_nums:
+            return 2.0, 1.0
+        elif selection == 'col2' and winning_number in col2_nums:
+            return 2.0, 1.0
+        elif selection == 'col3' and winning_number in col3_nums:
+            return 2.0, 1.0
+        return 0.0, 0.0
+    
+    # Split bets: two adjacent numbers
+    if bet_type == 'SPLIT':
+        try:
+            nums = list(map(int, selection.split(',')))
+        except:
+            return 0.0, 0.0
+        if winning_number in nums:
+            return 17.0, 1.0
+        return 0.0, 0.0
+    
+    # Street bets: 3 numbers in a row
+    if bet_type == 'STREET':
+        try:
+            nums = list(map(int, selection.split(',')))
+        except:
+            return 0.0, 0.0
+        if winning_number in nums:
+            return 11.0, 1.0
+        return 0.0, 0.0
+    
+    # Corner bets: 4 numbers in a square
+    if bet_type == 'CORNER':
+        try:
+            nums = list(map(int, selection.split(',')))
+        except:
+            return 0.0, 0.0
+        if winning_number in nums:
+            return 8.0, 1.0
+        return 0.0, 0.0
+    
+    # Line bets: 6 numbers (2 rows)
+    if bet_type == 'LINE':
+        try:
+            nums = list(map(int, selection.split(',')))
+        except:
+            return 0.0, 0.0
+        if winning_number in nums:
+            return 5.0, 1.0
+        return 0.0, 0.0
+    
+    # Even money bets
+    if bet_type == 'LO':
+        if 1 <= winning_number <= 18:
+            return 1.0, 1.0
+        return 0.0, 0.0
+    
+    if bet_type == 'HI':
+        if 19 <= winning_number <= 36:
+            return 1.0, 1.0
+        return 0.0, 0.0
+    
+    if bet_type == 'EVEN':
+        if winning_number != 0 and winning_number % 2 == 0:
+            return 1.0, 1.0
+        return 0.0, 0.0
+    
+    if bet_type == 'ODD':
+        if winning_number % 2 == 1:
+            return 1.0, 1.0
+        return 0.0, 0.0
+    
     # If bet_type is not recognized, return loss
     return 0.0, 0.0
 
@@ -197,6 +283,149 @@ class GameCycleViewSet(viewsets.ViewSet):
             
         except Session.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SessionAPIViewSet(viewsets.ViewSet):
+    """
+    Public API for session management and game play.
+    """
+    
+    def list(self, request):
+        """List all sessions."""
+        sessions = Session.objects.all().order_by('-created_at')[:10]
+        from .serializers import SessionSerializer
+        return Response(SessionSerializer(sessions, many=True).data)
+    
+    def create(self, request):
+        """Create a new session."""
+        session = Session.objects.create(
+            status='WAITING',
+            max_players=request.data.get('max_players', 4)
+        )
+        from .serializers import SessionSerializer
+        return Response(SessionSerializer(session).data, status=status.HTTP_201_CREATED)
+    
+    def retrieve(self, request, pk=None):
+        """Get a specific session."""
+        try:
+            session = Session.objects.get(session_id=pk)
+            from .serializers import SessionSerializer
+            return Response(SessionSerializer(session).data)
+        except Session.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    @transaction.atomic
+    def place_bets(self, request, pk=None):
+        """Place bets for a session."""
+        try:
+            session = Session.objects.get(session_id=pk)
+            bets_data = request.data.get('bets', [])
+            
+            processed_bets = []
+            for bet_data in bets_data:
+                player_id = bet_data.get('player_id')
+                bet_type = bet_data.get('bet_type')
+                amount = bet_data.get('amount')
+                selection = bet_data.get('selection')
+                
+                if not all([player_id, bet_type, amount, selection]):
+                    continue
+                
+                player, created = Player.objects.get_or_create(
+                    session=session,
+                    player_unique_id=player_id,
+                    defaults={'player_name': f"Player_{player_id}", 'current_chips': 1000}
+                )
+                
+                bet = Bet.objects.create(
+                    player=player,
+                    session=session,
+                    round_number=session.current_round + 1,
+                    bet_type=bet_type,
+                    amount=amount,
+                    selection=selection
+                )
+                
+                player.current_chips -= amount
+                player.save()
+                
+                processed_bets.append({
+                    'bet_id': bet.id,
+                    'bet_type': bet_type,
+                    'selection': selection,
+                    'amount': amount
+                })
+            
+            return Response({
+                'success': True,
+                'session_id': str(session.session_id),
+                'bets_placed': len(processed_bets),
+                'bets': processed_bets
+            })
+        except Session.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @transaction.atomic
+    def run_round(self, request, pk=None):
+        """Spin the wheel and calculate payouts."""
+        try:
+            session = Session.objects.get(session_id=pk)
+            winning_number = get_winning_number()
+            
+            # Get all bets for current round
+            bets = Bet.objects.filter(session=session, round_number=session.current_round + 1)
+            
+            bet_results = []
+            total_payout = 0
+            player_chips = {}
+            
+            for bet in bets:
+                multiplier, won = calculate_payout(bet.bet_type, bet.selection, winning_number, bet.amount)
+                payout = bet.amount * multiplier if won else 0
+                
+                if won:
+                    bet.player.current_chips += (bet.amount + payout)
+                    total_payout += payout
+                
+                bet.player.save()
+                
+                player_chips[bet.player.player_unique_id] = bet.player.current_chips
+                
+                bet_results.append({
+                    'bet_type': bet.bet_type,
+                    'selection': bet.selection,
+                    'amount': bet.amount,
+                    'payout': payout,
+                    'won': won > 0
+                })
+            
+            # Create history
+            History.objects.create(
+                session=session,
+                round_number=session.current_round + 1,
+                winning_number=winning_number,
+                payout_multiplier=total_payout / len(bets) if len(bets) > 0 else 0
+            )
+            
+            # Update session
+            session.current_round += 1
+            session.save()
+            
+            return Response({
+                'success': True,
+                'session_id': str(session.session_id),
+                'round_number': session.current_round,
+                'winning_number': winning_number,
+                'total_payout': total_payout,
+                'bet_results': bet_results,
+                'player_chips': player_chips
+            })
+        except Session.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

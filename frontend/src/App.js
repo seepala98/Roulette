@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import RouletteTable from './components/RouletteTable';
+import RouletteTableLayout from './components/RouletteTableLayout';
 import { GameProvider, useGameContext } from './context/GameContext';
 import './App.css'; // Assume this file holds global styling
 
@@ -44,7 +44,7 @@ const BoardUI = () => {
 
             <div className="betting-panel">
                 <h2>Your Bets (Round {gameState?.current_round + 1 || 1})</h2>
-                <BettingInterface onBetPlaced={handleAddBet} />
+                {/* We'll keep the old betting interface for now or remove it */}
                 <div className="current-bets-list">
                     {pendingBets.length > 0 ? (
                         <div>
@@ -67,50 +67,14 @@ const BoardUI = () => {
             </div>
 
             <div className="table-area">
-                <RouletteTable
-                    initialBets={pendingBets}
-                    onSpinComplete={handleSpinComplete}
+                <RouletteTableLayout
+                    onBetPlace={handleAddBet}
+                    currentBets={pendingBets}
                 />
             </div>
         </div>
     );
 };
-
-// Note: BetInputComponent will be defined here or in a separate file.
-// I'm using a placeholder for now.
-const BettingInterface = ({ onBetPlaced }) => {
-    const [betType, setBetType] = useState('RED');
-    const [selection, setSelection] = useState('17');
-    const [amount, setAmount] = useState(10);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (amount <= 0) return;
-
-        const bet = {
-            bet_type: betType,
-            amount: parseInt(amount),
-            selection: selection,
-            // Player ID will be retrieved from context/user session in a real build
-            player_id: 'current_user_uuid'
-        };
-        onBetPlaced(bet);
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="bet-form">
-            <select value={betType} onChange={(e) => setBetType(e.target.value)}>
-                <option value="RED">Red</option>
-                <option value="DOZEN">Dozen</option>
-                <option value="STRAIGHT_UP">Straight Up</option>
-            </select>
-            <input type="text" value={selection} onChange={(e) => setSelection(e.target.value)} placeholder="Selection (e.g., 17)" required />
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Chips" required />
-            <button type="submit">Place Bet</button>
-        </form>
-    );
-};
-
 
 const AppWrapper = () => {
     // Placeholder: We need the session ID somehow (e.g., from a URL query param)
