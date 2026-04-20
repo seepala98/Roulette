@@ -68,35 +68,46 @@
         .main-grid {
             display: flex;
             gap: 2px;
+            min-height: 120px;
         }
         
         .left-bets {
             display: flex;
             flex-direction: column;
+            flex: 0 0 35px;
+            gap: 2px;
+        }
+        .zero-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 120px;
+            flex: 1;
             gap: 2px;
         }
         .zero-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
+            width: 100%;
+            flex: 1;
+            border-radius: 4px;
             background: #22c55e;
             color: white;
             border: 2px solid #fff;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
         }
-        .zero-btn:hover { transform: scale(1.1); }
+        .zero-btn:hover { transform: scale(1.05); border-color: #86efac; }
         
         .number-grid {
             display: grid;
             grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: repeat(3, 1fr);
             gap: 2px;
             flex: 1;
             position: relative;
+            min-height: 120px;
         }
         
         .number-cell {
@@ -119,15 +130,23 @@
         .column-bets {
             display: flex;
             flex-direction: column;
+            flex: 0 0 35px;
+            gap: 2px;
+        }
+        .col-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 120px;
+            flex: 1;
             gap: 2px;
         }
         .col-btn {
-            width: 36px;
-            height: 32px;
+            width: 100%;
+            flex: 1;
             background: linear-gradient(145deg, #059669, #047857);
             border-radius: 4px;
             cursor: pointer;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -298,16 +317,20 @@
             
             <div class="main-grid">
                 <div class="left-bets">
-                    <div class="zero-btn" data-bet="0" data-type="STRAIGHT_UP">0</div>
-                    <div class="zero-btn" data-bet="00" data-type="STRAIGHT_UP">00</div>
+                    <div class="zero-container">
+                        <div class="zero-btn" data-bet="0" data-type="STRAIGHT_UP">0</div>
+                        <div class="zero-btn" data-bet="00" data-type="STRAIGHT_UP">00</div>
+                    </div>
                 </div>
                 
                 <div class="number-grid" id="grid"></div>
                 
                 <div class="column-bets">
-                    <div class="col-btn" data-bet="col1" data-type="COLUMN">2:1</div>
-                    <div class="col-btn" data-bet="col2" data-type="COLUMN">2:1</div>
-                    <div class="col-btn" data-bet="col3" data-type="COLUMN">2:1</div>
+                    <div class="col-container">
+                        <div class="col-btn" data-bet="col1" data-type="COLUMN">2:1</div>
+                        <div class="col-btn" data-bet="col2" data-type="COLUMN">2:1</div>
+                        <div class="col-btn" data-bet="col3" data-type="COLUMN">2:1</div>
+                    </div>
                 </div>
             </div>
             
@@ -455,28 +478,35 @@
                 }
             }
             
-            // Bottom zones: STREETS (yellow) on top, LINES (purple) below
-            // STREETS first (yellow) - positioned higher
+            // STREETS (yellow) - directly below each column
             for (let col = 0; col < 12; col++) {
                 const vStreet = document.createElement('div');
                 vStreet.className = 'click-zone';
-                vStreet.style.cssText = `left:${col * cellW}%;top:${cellH * 3}%;width:${cellW}%;height:3%;background:rgba(251,191,36,0.8);z-index:30;cursor:pointer;border-radius:2px;`;
+                vStreet.style.cssText = `left:${col * cellW}%;top:${cellH * 3 + 1}%;width:${cellW - 1}%;height:2.5%;background:rgba(251,191,36,0.9);z-index:30;cursor:pointer;border-radius:2px;`;
                 const nums = [LAYOUT[0][col], LAYOUT[1][col], LAYOUT[2][col]].sort((a,b) => a-b);
                 vStreet.title = 'Street: ' + nums.join(',');
                 vStreet.onclick = (e) => { e.stopPropagation(); placeBet('STREET', nums.join(','), chip); };
                 grid.appendChild(vStreet);
             }
             
-            // LINES (purple) - positioned BELOW the streets
+            // LINES (purple) - directly between columns, below streets
             for (let col = 0; col < 11; col++) {
                 const vLine = document.createElement('div');
                 vLine.className = 'click-zone';
-                vLine.style.cssText = `left:${(col + 1) * cellW + 1}%;top:${cellH * 3 + 3.2}%;width:${cellW * 1.8}%;height:2.5%;background:rgba(168,85,247,0.8);z-index:25;cursor:pointer;border-radius:2px;`;
+                vLine.style.cssText = `left:${(col + 1) * cellW}%;top:${cellH * 3 + 4}%;width:${cellW - 1}%;height:2.5%;background:rgba(168,85,247,0.9);z-index:25;cursor:pointer;border-radius:2px;`;
                 const nums = [...LAYOUT[0].slice(col, col+2), ...LAYOUT[1].slice(col, col+2), ...LAYOUT[2].slice(col, col+2)].sort((a,b) => a-b);
                 vLine.title = 'Line: ' + nums.join(',');
                 vLine.onclick = (e) => { e.stopPropagation(); placeBet('LINE', nums.join(','), chip); };
                 grid.appendChild(vLine);
             }
+            
+            // Split 0,00 - left of zeros
+            const zeroSplit = document.createElement('div');
+            zeroSplit.className = 'click-zone';
+            zeroSplit.style.cssText = `left:-4%;top:${cellH * 0.5}%;width:4%;height:${cellH * 2 - 2}%;border-right:3px solid rgba(236,72,153,0.9);z-index:30;cursor:pointer;`;
+            zeroSplit.title = 'Split: 0,00';
+            zeroSplit.onclick = (e) => { e.stopPropagation(); placeBet('SPLIT', '0,00', chip); };
+            grid.appendChild(zeroSplit);
         }
         
         function placeBet(type, sel, amt) {
@@ -522,6 +552,8 @@
         
         function updateChips() {
             document.querySelectorAll('.chip-marker').forEach(m => m.remove());
+            
+            // STRAIGHT_UP - on each number
             bets.filter(b => b.bet_type === 'STRAIGHT_UP').forEach(b => {
                 const cell = el('grid').querySelector(`[data-num="${b.selection}"]`);
                 if (cell) {
@@ -534,6 +566,16 @@
                     cell.appendChild(m);
                 }
             });
+            
+            // For STREET/LINE/CORNER/SPLIT - show total in corner of grid
+            const otherBets = bets.filter(b => b.bet_type !== 'STRAIGHT_UP');
+            if (otherBets.length > 0) {
+                const m = document.createElement('div');
+                m.className = 'chip-marker';
+                m.textContent = otherBets.reduce((s,b) => s + b.amount, 0);
+                m.style.cssText = 'position:fixed;left:10px;top:50%;z-index:999;';
+                document.body.appendChild(m);
+            }
         }
         
         function updateStates() {
