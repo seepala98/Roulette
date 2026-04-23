@@ -1,85 +1,141 @@
-// app/context/GameContext.js
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import {
+  createSession,
+  getSessionState,
+  placeBets,
+  runRound,
+} from '../services/gameService';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getSessionState, runRound } from '../services/gameService';
-import { v4 as uuidv4 } from 'uuid';
-
-const GameContext = createContext();
+const GameContext = createContext(null);
 
 export const useGameContext = () => useContext(GameContext);
 
-export const GameProvider = ({ children, initialSessionId }) => {
-    const [gameState, setGameState] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+export const GameProvider = ({ children, initialSessionId = null }) => {
+  const [gameState, setGameState] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    // 1. Load initial state when the session ID is available
-    useEffect(() => {
-        if (initialSessionId) {
-            loadInitialState(initialSessionId);
-        }
-    }, [initialSessionId]);
+  const initializeSession = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
 
-    const loadInitialState = useCallback(async (sessionId) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            // Simulate initial API fetch
-            const state = await getSessionState(sessionId);
-            setGameState(state);
-        } catch (err) {
-            setError("Failed to load initial game state. Please check the API connection.");
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+    try {
+      const session = initialSessionId
+        ? await getSessionState(initialSessionId)
+        : await createSession();
 
-    /**
-     * Processes the user's bet submission for a round.
-     * @param {Array<object>} userBets - A list of {bet_type, amount, selection} submitted by the user.
-     */
-    const placeBetsAndRunRound = useCallback(async (userBets) => {
-        if (!gameState || gameState.status !== 'WAITING') {
-            alert("Cannot bet right now. The game must be waiting for players.");
-            return null;
-        }
+      setGameState({
+        ...session,
+        lastRoundResult: null,
+      });
+    } catch (initialLoadError) {
+      try {
+        const fallbackSession = await createSession();
+        setGameState({
+          ...fallbackSession,
+          lastRoundResult: null,
+        });
+      } catch (creationError) {
+        setError(
+          'Unable to create a roulette session. Please verify the backend is running.',
+        );
+        console.error(creationError);
+      }
 
-        try {
-            setIsLoading(true);
-            // Call the backend service to run the round (this handles the entire transaction)
-            const result = await runRound(gameState.session_id, userBets);
+      console.error(initialLoadError);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [initialSessionId]);
 
-            // Update the local state with the results from the server
-            setGameState(prev => ({
-                ...prev,
-                current_round: result.round_number,
-                status: result.new_session_status,
-                history: result.round_history_bets,
-                players: result.updated_players,
-                winning_number: result.winning_number,
-                // Add more state updates here
-            }));
-            return result;
-        } catch (e) {
-            setError("Error running round: " + e.message);
-            console.error(e);
-            return null;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [gameState]);
+  useEffect(() => {
+    initializeSession();
+  }, [initializeSession]);
 
-    // Expose necessary functions and state
-    return (
-        <GameContext.Provider value={{
-            gameState,
-            isLoading,
-            error,
-            placeBetsAndRunRound,
-            loadInitialState
-        }}>
-            {children}
-        </GameContext.Provider>
-    );
+  const refreshSession = useCallback(async () => {
+    if (!gameState || !gameState.sessionId) {
+      return null;
+    }
+
+    try {
+      const session = await getSessionState(gameState.sessionId);
+      setGameState((previous) => ({
+        ...previous,
+        ...session,
+      }));
+      return session;
+    } catch (refreshError) {
+      setError('Unable to refresh the current table state.');
+      console.error(refreshError);
+      return null;
+    }
+  }, [gameState]);
+
+  const placeBetsAndRunRound = useCallback(
+    async (userBets) => {
+      if (!gameState || !gameState.sessionId) {
+        setError('The roulette table is still initializing.');
+        return null;
+      }
+
+      if (userBets.length === 0) {
+        return null;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        await placeBets(gameState.sessionId, userBets);
+        const result = await runRound(gameState.sessionId);
+
+        setGameState((previous) => ({
+          ...previous,
+          currentRound:
+            result.round_number !== undefined
+              ? result.round_number
+              : previous.currentRound + 1,
+          status: 'WAITING',
+          lastRoundResult: result,
+        }));
+
+        return result;
+      } catch (roundError) {
+        const responseError =
+          roundError &&
+          roundError.response &&
+          roundError.response.data &&
+          roundError.response.data.error;
+        setError(
+          responseError || 'There was a problem processing this round.',
+        );
+        console.error(roundError);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [gameState],
+  );
+
+  return (
+    <GameContext.Provider
+      value={{
+        gameState,
+        isLoading,
+        error,
+        initializeSession,
+        placeBetsAndRunRound,
+        refreshSession,
+      }}
+    >
+      {children}
+    </GameContext.Provider>
+  );
 };

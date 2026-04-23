@@ -1,173 +1,323 @@
-// src/components/RouletteTableLayout.js
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import './RouletteTableLayout.css';
+import {
+  BOARD_DEFINITION,
+  CHIP_STYLES,
+  describeWinningNumber,
+  getNumberColor,
+  resolveBetSpot,
+  summarizeChipPlacements,
+} from '../lib/rouletteBoard';
 
-const ROULETTE_LAYOUT = {
-  // Numbers 1-36 in 3 columns and 12 rows
-  numbers: [
-    [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36], // Row 1
-    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35], // Row 2
-    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]  // Row 3
-  ],
-  
-  // Special bets
-  specialBets: [
-    { type: '0', label: '0', position: 'top-left' },
-    { type: '00', label: '00', position: 'top-right' } // For American roulette
-  ]
+const renderHighlight = (spot) => {
+  if (!spot) {
+    return null;
+  }
+
+  if (spot.highlight.type === 'circle') {
+    return (
+      <circle
+        cx={spot.highlight.cx}
+        cy={spot.highlight.cy}
+        r={spot.highlight.radius}
+        className="spot-highlight"
+      />
+    );
+  }
+
+  return (
+    <rect
+      x={spot.highlight.x}
+      y={spot.highlight.y}
+      width={spot.highlight.width}
+      height={spot.highlight.height}
+      rx={spot.highlight.rx || 10}
+      className="spot-highlight"
+    />
+  );
 };
 
-const getNumberColor = (number) => {
-  if (number === 0 || number === '00') return 'green';
-  
-  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-  return redNumbers.includes(number) ? 'red' : 'black';
+const renderChipStack = (bet) => {
+  const chipsToRender = bet.chips.slice(-3);
+  const radius = 18;
+
+  return (
+    <g key={bet.spotId} transform={`translate(${bet.anchor.x}, ${bet.anchor.y})`}>
+      {chipsToRender.map((chipValue, index) => {
+        const style = CHIP_STYLES[chipValue] || CHIP_STYLES[5];
+        const xOffset = (index - (chipsToRender.length - 1) / 2) * 7;
+        const yOffset = (chipsToRender.length - index - 1) * -6;
+
+        return (
+          <g key={`${bet.spotId}-${chipValue}-${index}`} transform={`translate(${xOffset}, ${yOffset})`}>
+            <circle cx="2" cy="4" r={radius + 3} className="chip-shadow" />
+            <circle r={radius} fill={style.fill} stroke={style.stroke} strokeWidth="4" />
+            <circle r={radius - 7} className="chip-core" />
+          </g>
+        );
+      })}
+      <text className="chip-total" textAnchor="middle" dy="5">
+        {bet.totalAmount}
+      </text>
+    </g>
+  );
 };
 
-const RouletteTableLayout = ({ onBetPlace, currentBets }) => {
-  const handlePlaceBet = (betType, selection, amount = 5) => {
-    onBetPlace({
-      bet_type: betType,
-      amount: amount,
-      selection: selection,
-      player_id: 'web_player_' + Math.random().toString(36).substr(2, 9)
-    });
+const RouletteTableLayout = ({
+  chipValue,
+  currentPlacements,
+  onSpotSelect,
+  isLocked,
+  lastRoundResult,
+}) => {
+  const svgRef = useRef(null);
+  const [hoveredSpotId, setHoveredSpotId] = useState(null);
+  const summarizedBets = summarizeChipPlacements(currentPlacements);
+  const hoveredSpot = hoveredSpotId
+    ? BOARD_DEFINITION.spotMap.get(hoveredSpotId)
+    : null;
+  const winningInfo = describeWinningNumber(
+    lastRoundResult ? lastRoundResult.winning_number : null,
+  );
+
+  const getBoardPoint = (event) => {
+    if (!svgRef.current) {
+      return null;
+    }
+
+    const bounds = svgRef.current.getBoundingClientRect();
+
+    if (!bounds.width || !bounds.height) {
+      return null;
+    }
+
+    return {
+      x: ((event.clientX - bounds.left) / bounds.width) * BOARD_DEFINITION.width,
+      y: ((event.clientY - bounds.top) / bounds.height) * BOARD_DEFINITION.height,
+    };
+  };
+
+  const updateHoveredSpot = (event) => {
+    const point = getBoardPoint(event);
+
+    if (!point) {
+      setHoveredSpotId(null);
+      return null;
+    }
+
+    const spot = resolveBetSpot(point);
+    setHoveredSpotId(spot ? spot.id : null);
+    return spot;
+  };
+
+  const handlePointerMove = (event) => {
+    updateHoveredSpot(event);
+  };
+
+  const handlePointerLeave = () => {
+    setHoveredSpotId(null);
+  };
+
+  const handlePointerDown = (event) => {
+    if (isLocked) {
+      return;
+    }
+
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    const spot = updateHoveredSpot(event);
+
+    if (spot) {
+      onSpotSelect(spot);
+    }
   };
 
   return (
-    <div className="roulette-table-layout">
-      {/* Zero and Double Zero (American style) */}
-      <div className="zero-bets">
-        <div 
-          className="bet-cell zero-cell" 
-          onClick={() => handlePlaceBet('STRAIGHT_UP', '0', 5)}
-          title="Bet on 0"
-        >
-          0
+    <section className="roulette-table-layout">
+      <div className="table-copy">
+        <div>
+          <p className="eyebrow">Precision Betting Surface</p>
+          <h2>Interactive American Table</h2>
         </div>
-        <div 
-          className="bet-cell zero-cell" 
-          onClick={() => handlePlaceBet('STRAIGHT_UP', '00', 5)}
-          title="Bet on 00"
-        >
-          00
+        <div className="table-status">
+          <span>Selected chip</span>
+          <strong>{chipValue}</strong>
         </div>
       </div>
 
-      {/* Main Number Grid (3 columns x 12 rows) */}
-      <div className="number-grid">
-        {ROULETTE_LAYOUT.numbers.map((row, rowIndex) => (
-          <div key={`row-${rowIndex}`} className="number-row">
-            {row.map((num, colIndex) => {
-              const color = getNumberColor(num);
-              return (
-                <div 
-                  key={`num-${num}`}
-                  className={`bet-cell number-cell ${color}`}
-                  onClick={() => handlePlaceBet('STRAIGHT_UP', num.toString(), 5)}
-                  title={`Bet on ${num}`}
+      <div className="table-shell">
+        <div className="board-scroll">
+          <svg
+            ref={svgRef}
+            className={`betting-board ${isLocked ? 'is-locked' : ''}`}
+            viewBox={BOARD_DEFINITION.viewBox}
+            role="img"
+            aria-label="Interactive roulette betting board"
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            onPointerDown={handlePointerDown}
+          >
+            <rect
+              x="8"
+              y="8"
+              width={BOARD_DEFINITION.width - 16}
+              height={BOARD_DEFINITION.height - 16}
+              rx="28"
+              className="board-frame"
+            />
+
+            <text
+              className="board-label"
+              x={BOARD_DEFINITION.gridX}
+              y={BOARD_DEFINITION.gridY - 34}
+            >
+              Street bets sit on the top rail between grid lines.
+            </text>
+
+            {BOARD_DEFINITION.zeroCells.map((cell) => (
+              <g key={cell.id}>
+                <rect
+                  x={cell.x}
+                  y={cell.y}
+                  width={cell.width}
+                  height={cell.height}
+                  rx="18"
+                  className="zero-cell-shape"
+                />
+                <text
+                  x={cell.x + cell.width / 2}
+                  y={cell.labelY}
+                  className="zero-label"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
                 >
-                  <div className="number">{num}</div>
-                  <div className="color-indicator" 
-                       style={{ backgroundColor: color === 'red' ? '#c41e3a' : color === 'black' ? '#000' : '#64a650' }}>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                  {cell.number}
+                </text>
+              </g>
+            ))}
+
+            {BOARD_DEFINITION.numberCells.map((cell) => (
+              <g key={cell.id}>
+                <rect
+                  x={cell.x}
+                  y={cell.y}
+                  width={cell.width}
+                  height={cell.height}
+                  className={`number-cell-shape ${getNumberColor(cell.number)}`}
+                />
+                <text
+                  x={cell.anchor.x}
+                  y={cell.anchor.y + 3}
+                  className="number-label"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                >
+                  {cell.number}
+                </text>
+              </g>
+            ))}
+
+            {BOARD_DEFINITION.columnBoxes.map((box) => (
+              <g key={box.id}>
+                <rect
+                  x={box.x}
+                  y={box.y}
+                  width={box.width}
+                  height={box.height}
+                  rx="12"
+                  className="outside-box"
+                />
+                <text
+                  x={box.anchor.x}
+                  y={box.anchor.y}
+                  className="outside-box-label small"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                >
+                  2 to 1
+                </text>
+              </g>
+            ))}
+
+            {BOARD_DEFINITION.dozenBoxes.map((box) => (
+              <g key={box.id}>
+                <rect
+                  x={box.x}
+                  y={box.y}
+                  width={box.width}
+                  height={box.height}
+                  rx="12"
+                  className="outside-box"
+                />
+                <text
+                  x={box.anchor.x}
+                  y={box.anchor.y}
+                  className="outside-box-label"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                >
+                  {box.label}
+                </text>
+              </g>
+            ))}
+
+            {BOARD_DEFINITION.outsideBoxes.map((box) => (
+              <g key={box.id}>
+                <rect
+                  x={box.x}
+                  y={box.y}
+                  width={box.width}
+                  height={box.height}
+                  rx="12"
+                  className={`outside-box ${box.betType === 'RED' ? 'is-red' : ''} ${
+                    box.betType === 'BLACK' ? 'is-black' : ''
+                  }`}
+                />
+                <text
+                  x={box.anchor.x}
+                  y={box.anchor.y}
+                  className="outside-box-label"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                >
+                  {box.label}
+                </text>
+              </g>
+            ))}
+
+            {renderHighlight(hoveredSpot)}
+
+            {winningInfo &&
+              BOARD_DEFINITION.spotMap.has(`straight-${winningInfo.label}`) &&
+              renderHighlight(
+                BOARD_DEFINITION.spotMap.get(`straight-${winningInfo.label}`),
+              )}
+
+            {summarizedBets.map((bet) => renderChipStack(bet))}
+          </svg>
+        </div>
       </div>
 
-      {/* Side Bets (Columns, Dozens, etc.) */}
-      <div className="side-bets">
-        {/* Columns bets */}
-        <div className="column-bets">
-          {[1, 2, 3].map(col => (
-            <div 
-              key={`col-${col}`}
-              className="bet-cell column-cell"
-              onClick={() => handlePlaceBet('COLUMN', `2to1col${col}`, 5)}
-              title={`Bet on Column ${col}`}
-            >
-              2 to 1<br/>Column {col}
-            </div>
-          ))}
-        </div>
-        
-        {/* Dozens bets */}
-        <div className="dozen-bets">
-          ['1st 12', '2nd 12', '3rd 12'].map((label, index) => (
-            <div 
-              key={`dozen-${index}`}
-              className="bet-cell dozen-cell"
-              onClick={() => handlePlaceBet('DOZEN', label.replace('nd ', '').replace('rd ', '').replace('st ', ''), 5)}
-              title={`Bet on ${label}`}
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-        
-        {/* Even Money Bets */}
-        <div className="even-money-bets">
-          <div 
-            className="bet-cell even-cell"
-            onClick={() => handlePlaceBet('EVEN_ODD', 'even', 5)}
-            title="Bet on Even"
-          >
-            Even
-          </div>
-          <div 
-            className="bet-cell even-cell"
-            onClick={() => handlePlaceBet('RED_BLACK', 'black', 5)}
-            title="Bet on Black"
-          >
-            Black
-          </div>
-          <div 
-            className="bet-cell even-cell"
-            onClick={() => handlePlaceBet('EVEN_ODD', 'odd', 5)}
-            title="Bet on Odd"
-          >
-            Odd
-          </div>
-          <div 
-            className="bet-cell even-cell"
-            onClick={() => handlePlaceBet('RED_BLACK', 'red', 5)}
-            title="Bet on Red"
-          >
-            Red
-          </div>
-          <div 
-            className="bet-cell even-cell"
-            onClick={() => handlePlaceBet('HI_LO', '1to18', 5)}
-            title="Bet on Low (1-18)"
-          >
-            1 to 18
-          </div>
-          <div 
-            className="bet-cell even-cell"
-            onClick={() => handlePlaceBet('HI_LO', '19to36', 5)}
-            title="Bet on High (19-36)"
-          >
-            19 to 36
-          </div>
+      <div className="table-guidance">
+        <p>
+          Click a number center for straight bets, the line between two numbers for
+          splits, an intersection for corners, and the top rail for street or line
+          bets.
+        </p>
+        <div className="table-readout">
+          <span>
+            Hovered bet:
+            <strong>{hoveredSpot ? ` ${hoveredSpot.label}` : ' none'}</strong>
+          </span>
+          <span>
+            Last winner:
+            <strong>{winningInfo ? ` ${winningInfo.label}` : ' pending'}</strong>
+          </span>
         </div>
       </div>
-
-      {/* Street, Corner, Split bets would go here in a full implementation */}
-      <div className="info-panel">
-        <div className="bet-info">
-          <p><strong>How to Play:</strong></p>
-          <ul>
-            <li>Click on any number to place a straight-up bet</li>
-            <li>Click on side bets for columns, dozens, even/odd, etc.</li>
-            <li>Click "Spin Wheel" when ready</li>
-            <li>Minimum bet: 5 chips</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 };
 
