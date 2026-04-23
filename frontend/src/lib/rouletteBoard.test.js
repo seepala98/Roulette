@@ -1,5 +1,7 @@
 import {
   BOARD_DEFINITION,
+  PORTRAIT_BOARD_DEFINITION,
+  describeWinningNumber,
   resolveBetSpot,
   summarizeChipPlacements,
   toPayloadBets,
@@ -16,9 +18,9 @@ describe('roulette board geometry', () => {
     expect(spot.selection).toBe('17');
   });
 
-  test('resolves a street bet from the top rail anchor', () => {
+  test('resolves a street bet from the desktop top rail anchor', () => {
     const spot = resolveBetSpot(
-      BOARD_DEFINITION.spotMap.get('street-1').anchor,
+      BOARD_DEFINITION.spotMap.get('street-1,2,3').anchor,
       BOARD_DEFINITION,
     );
 
@@ -26,22 +28,32 @@ describe('roulette board geometry', () => {
     expect(spot.selection).toBe('1,2,3');
   });
 
-  test('resolves a corner bet at an interior intersection', () => {
+  test('resolves a zero split at the seam between 0 and 00', () => {
     const spot = resolveBetSpot(
-      BOARD_DEFINITION.spotMap.get('corner-1-2').anchor,
+      BOARD_DEFINITION.spotMap.get('split-0,00').anchor,
       BOARD_DEFINITION,
     );
 
-    expect(spot.betType).toBe('CORNER');
-    expect(spot.selection).toBe('1,2,4,5');
+    expect(spot.betType).toBe('SPLIT');
+    expect(spot.selection).toBe('0,00');
+  });
+
+  test('uses the same logical zero split in portrait mode', () => {
+    const spot = resolveBetSpot(
+      PORTRAIT_BOARD_DEFINITION.spotMap.get('split-0,00').anchor,
+      PORTRAIT_BOARD_DEFINITION,
+    );
+
+    expect(spot.betType).toBe('SPLIT');
+    expect(spot.selection).toBe('0,00');
   });
 });
 
-describe('roulette bet aggregation', () => {
+describe('roulette labels and aggregation', () => {
   const placements = [
     {
       placementId: 'a',
-      spotId: 'street-1',
+      spotId: 'street-1,2,3',
       betType: 'STREET',
       selection: '1,2,3',
       amount: 10,
@@ -49,7 +61,7 @@ describe('roulette bet aggregation', () => {
     },
     {
       placementId: 'b',
-      spotId: 'street-1',
+      spotId: 'street-1,2,3',
       betType: 'STREET',
       selection: '1,2,3',
       amount: 25,
@@ -67,7 +79,7 @@ describe('roulette bet aggregation', () => {
 
   test('summarizes repeated chip placements into a single rendered stack', () => {
     const summary = summarizeChipPlacements(placements, BOARD_DEFINITION);
-    const streetBet = summary.find((entry) => entry.spotId === 'street-1');
+    const streetBet = summary.find((entry) => entry.spotId === 'street-1,2,3');
 
     expect(summary).toHaveLength(2);
     expect(streetBet.totalAmount).toBe(35);
@@ -89,5 +101,12 @@ describe('roulette bet aggregation', () => {
         amount: 10,
       },
     ]);
+  });
+
+  test('maps the American double-zero winner into a display label', () => {
+    expect(describeWinningNumber(37)).toEqual({
+      label: '00',
+      color: 'green',
+    });
   });
 });

@@ -53,6 +53,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.15rem;
 }
 
 .betting-board {
@@ -210,11 +211,6 @@
   .table-shell {
     padding: 0.7rem;
     border-radius: 22px;
-  }
-
-  .betting-board {
-    width: 820px;
-    max-width: none;
   }
 
   .table-guidance {

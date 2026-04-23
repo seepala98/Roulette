@@ -1,9 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './RouletteTableLayout.css';
 import {
-  BOARD_DEFINITION,
   CHIP_STYLES,
   describeWinningNumber,
+  getBoardDefinition,
   getNumberColor,
   resolveBetSpot,
   summarizeChipPlacements,
@@ -72,13 +72,48 @@ const RouletteTableLayout = ({
 }) => {
   const svgRef = useRef(null);
   const [hoveredSpotId, setHoveredSpotId] = useState(null);
-  const summarizedBets = summarizeChipPlacements(currentPlacements);
+  const [isPortraitLayout, setIsPortraitLayout] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.matchMedia('(max-width: 720px)').matches;
+  });
+  const boardDefinition = getBoardDefinition(isPortraitLayout);
+  const summarizedBets = summarizeChipPlacements(currentPlacements, boardDefinition);
   const hoveredSpot = hoveredSpotId
-    ? BOARD_DEFINITION.spotMap.get(hoveredSpotId)
+    ? boardDefinition.spotMap.get(hoveredSpotId)
     : null;
   const winningInfo = describeWinningNumber(
     lastRoundResult ? lastRoundResult.winning_number : null,
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 720px)');
+    const handleChange = (event) => {
+      setIsPortraitLayout(event.matches);
+    };
+
+    setIsPortraitLayout(mediaQuery.matches);
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (hoveredSpotId && !boardDefinition.spotMap.has(hoveredSpotId)) {
+      setHoveredSpotId(null);
+    }
+  }, [boardDefinition, hoveredSpotId]);
 
   const getBoardPoint = (event) => {
     if (!svgRef.current) {
@@ -92,8 +127,8 @@ const RouletteTableLayout = ({
     }
 
     return {
-      x: ((event.clientX - bounds.left) / bounds.width) * BOARD_DEFINITION.width,
-      y: ((event.clientY - bounds.top) / bounds.height) * BOARD_DEFINITION.height,
+      x: ((event.clientX - bounds.left) / bounds.width) * boardDefinition.width,
+      y: ((event.clientY - bounds.top) / bounds.height) * boardDefinition.height,
     };
   };
 
@@ -105,7 +140,7 @@ const RouletteTableLayout = ({
       return null;
     }
 
-    const spot = resolveBetSpot(point);
+    const spot = resolveBetSpot(point, boardDefinition);
     setHoveredSpotId(spot ? spot.id : null);
     return spot;
   };
@@ -152,7 +187,7 @@ const RouletteTableLayout = ({
           <svg
             ref={svgRef}
             className={`betting-board ${isLocked ? 'is-locked' : ''}`}
-            viewBox={BOARD_DEFINITION.viewBox}
+            viewBox={boardDefinition.viewBox}
             role="img"
             aria-label="Interactive roulette betting board"
             onPointerMove={handlePointerMove}
@@ -162,21 +197,21 @@ const RouletteTableLayout = ({
             <rect
               x="8"
               y="8"
-              width={BOARD_DEFINITION.width - 16}
-              height={BOARD_DEFINITION.height - 16}
+              width={boardDefinition.width - 16}
+              height={boardDefinition.height - 16}
               rx="28"
               className="board-frame"
             />
 
             <text
               className="board-label"
-              x={BOARD_DEFINITION.gridX}
-              y={BOARD_DEFINITION.gridY - 34}
+              x={boardDefinition.gridX}
+              y={boardDefinition.gridY - 34}
             >
-              Street bets sit on the top rail between grid lines.
+              {boardDefinition.labelText}
             </text>
 
-            {BOARD_DEFINITION.zeroCells.map((cell) => (
+            {boardDefinition.zeroCells.map((cell) => (
               <g key={cell.id}>
                 <rect
                   x={cell.x}
@@ -198,7 +233,7 @@ const RouletteTableLayout = ({
               </g>
             ))}
 
-            {BOARD_DEFINITION.numberCells.map((cell) => (
+            {boardDefinition.numberCells.map((cell) => (
               <g key={cell.id}>
                 <rect
                   x={cell.x}
@@ -219,7 +254,7 @@ const RouletteTableLayout = ({
               </g>
             ))}
 
-            {BOARD_DEFINITION.columnBoxes.map((box) => (
+            {boardDefinition.columnBoxes.map((box) => (
               <g key={box.id}>
                 <rect
                   x={box.x}
@@ -236,12 +271,12 @@ const RouletteTableLayout = ({
                   textAnchor="middle"
                   dominantBaseline="middle"
                 >
-                  2 to 1
+                  {box.label}
                 </text>
               </g>
             ))}
 
-            {BOARD_DEFINITION.dozenBoxes.map((box) => (
+            {boardDefinition.dozenBoxes.map((box) => (
               <g key={box.id}>
                 <rect
                   x={box.x}
@@ -263,7 +298,7 @@ const RouletteTableLayout = ({
               </g>
             ))}
 
-            {BOARD_DEFINITION.outsideBoxes.map((box) => (
+            {boardDefinition.outsideBoxes.map((box) => (
               <g key={box.id}>
                 <rect
                   x={box.x}
@@ -290,9 +325,9 @@ const RouletteTableLayout = ({
             {renderHighlight(hoveredSpot)}
 
             {winningInfo &&
-              BOARD_DEFINITION.spotMap.has(`straight-${winningInfo.label}`) &&
+              boardDefinition.spotMap.has(`straight-${winningInfo.label}`) &&
               renderHighlight(
-                BOARD_DEFINITION.spotMap.get(`straight-${winningInfo.label}`),
+                boardDefinition.spotMap.get(`straight-${winningInfo.label}`),
               )}
 
             {summarizedBets.map((bet) => renderChipStack(bet))}
@@ -301,11 +336,7 @@ const RouletteTableLayout = ({
       </div>
 
       <div className="table-guidance">
-        <p>
-          Click a number center for straight bets, the line between two numbers for
-          splits, an intersection for corners, and the top rail for street or line
-          bets.
-        </p>
+        <p>{boardDefinition.guidanceText}</p>
         <div className="table-readout">
           <span>
             Hovered bet:

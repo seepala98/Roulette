@@ -1,8 +1,4 @@
-# docker-compose.yml
-version: '3.8'
-
 services:
-  # 1. PostgreSQL Database Service
   db:
     image: postgres:15-alpine
     container_name: roulette_db
@@ -13,14 +9,12 @@ services:
       POSTGRES_DB: roulette_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/migrations:/app/backend/migrations
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rouletteuser"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # 2. Django Backend API Service
   backend:
     build:
       context: .
@@ -30,16 +24,18 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgres://rouletteuser:strongpassword@db:5432/roulette_db
-      SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:-roulette-dev-secret-key}
+      DEBUG: ${DEBUG:-true}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend,0.0.0.0,roulette_frontend,frontend}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     depends_on:
       db:
         condition: service_healthy
 
-  # 3. Simple Frontend Service (serving static HTML)
   frontend:
     build:
       context: .
-      dockerfile: ./infra/Dockerfile.frontend.simple
+      dockerfile: ./infra/Dockerfile.frontend
     container_name: roulette_frontend
     ports:
       - "3000:80"
