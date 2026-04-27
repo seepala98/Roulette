@@ -1,188 +1,219 @@
 .roulette-table-layout {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  gap: 1rem;
 }
 
-.zero-bets {
+.table-copy {
   display: flex;
   justify-content: space-between;
-  width: 100%;
-  max-width: 800px;
+  align-items: flex-end;
+  gap: 1rem;
 }
 
-.zero-cell {
-  width: 60px;
-  height: 60px;
-  background-color: green;
-  color: white;
-  display: flex;
+.table-copy h2 {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  color: #f8edcc;
+}
+
+.table-status {
+  display: inline-flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 2px solid #ddd;
+  align-items: flex-end;
+  gap: 0.25rem;
+  min-width: 110px;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: rgba(12, 33, 29, 0.72);
+  border: 1px solid rgba(232, 198, 108, 0.25);
+  color: #cbbf95;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
 }
 
-.zero-cell:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 10px rgba(255,255,255,0.5);
+.table-status strong {
+  color: #fff7df;
+  font-size: 1.45rem;
+  line-height: 1;
 }
 
-.number-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
+.table-shell {
+  padding: 1rem;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top, rgba(28, 67, 58, 0.88), rgba(10, 26, 23, 0.95)),
+    linear-gradient(135deg, rgba(247, 216, 131, 0.08), transparent 35%);
+  border: 1px solid rgba(236, 204, 116, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 246, 221, 0.1), 0 24px 42px rgba(0, 0, 0, 0.25);
+}
+
+.board-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.15rem;
+}
+
+.betting-board {
   width: 100%;
-  max-width: 600px;
+  height: auto;
+  display: block;
+  touch-action: manipulation;
+  cursor: crosshair;
 }
 
-.number-row {
-  display: contents;
+.betting-board.is-locked {
+  cursor: wait;
 }
 
-.number-cell {
-  aspect-ratio: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #ddd;
-  position: relative;
-  overflow: hidden;
+.board-frame {
+  fill: rgba(4, 19, 16, 0.9);
+  stroke: rgba(236, 204, 116, 0.42);
+  stroke-width: 2;
 }
 
-.number-cell.red {
-  background-color: #c41e3a;
-  color: white;
+.board-label {
+  fill: rgba(247, 237, 210, 0.88);
+  font-size: 20px;
+  letter-spacing: 0.03em;
 }
 
-.number-cell.black {
-  background-color: #000;
-  color: white;
+.zero-cell-shape {
+  fill: #0c6b55;
+  stroke: rgba(255, 249, 233, 0.52);
+  stroke-width: 2;
 }
 
-.number-cell:hover {
-  transform: scale(1.1);
-  z-index: 10;
-  box-shadow: 0 0 15px rgba(0,0,0,0.3);
+.zero-label {
+  fill: #fff7e1;
+  font-size: 31px;
+  font-weight: 700;
 }
 
-.number {
+.number-cell-shape {
+  stroke: rgba(255, 249, 233, 0.62);
+  stroke-width: 1.6;
+}
+
+.number-cell-shape.red {
+  fill: #b13d3c;
+}
+
+.number-cell-shape.black {
+  fill: #141413;
+}
+
+.number-label {
+  fill: #fff8e4;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.outside-box {
+  fill: rgba(17, 37, 33, 0.92);
+  stroke: rgba(255, 249, 233, 0.56);
+  stroke-width: 1.6;
+}
+
+.outside-box.is-red {
+  fill: rgba(177, 61, 60, 0.95);
+}
+
+.outside-box.is-black {
+  fill: rgba(23, 23, 23, 0.96);
+}
+
+.outside-box-label {
+  fill: #fff5d9;
   font-size: 18px;
-  margin-bottom: 2px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.color-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-top: 2px;
+.outside-box-label.small {
+  font-size: 17px;
 }
 
-.side-bets {
+.spot-highlight {
+  fill: rgba(255, 222, 126, 0.16);
+  stroke: rgba(255, 219, 118, 0.95);
+  stroke-width: 2.4;
+}
+
+.chip-shadow {
+  fill: rgba(0, 0, 0, 0.24);
+}
+
+.chip-core {
+  fill: rgba(255, 255, 255, 0.16);
+}
+
+.chip-total {
+  fill: #fff8e4;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.56);
+  stroke-width: 4px;
+}
+
+.table-guidance {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  max-width: 800px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(8, 24, 22, 0.65);
+  border: 1px solid rgba(232, 198, 108, 0.14);
+  color: #d7cca6;
 }
 
-.column-bets, .dozen-bets, .even-money-bets {
+.table-guidance p {
+  margin: 0;
+  max-width: 42rem;
+  line-height: 1.55;
+}
+
+.table-readout {
   display: flex;
-  gap: 5px;
+  gap: 1.1rem;
+  white-space: nowrap;
+  font-size: 0.95rem;
 }
 
-.bet-cell {
-  padding: 10px;
-  text-align: center;
-  cursor: pointer;
-  border-radius: 6px;
-  border: 2px solid #ccc;
-  transition: all 0.2s ease;
-  font-size: 12px;
-  font-weight: 500;
+.table-readout strong {
+  color: #fff6d8;
 }
 
-.bet-cell:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  border-color: #999;
-}
-
-.column-cell, .dozen-cell {
-  flex: 1;
-  min-width: 80px;
-  background-color: #f0f0f0;
-}
-
-.even-cell {
-  flex: 1;
-  min-width: 60px;
-  background-color: #e9e9e9;
-}
-
-.bet-info {
-  background-color: #fff;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  width: 100%;
-  max-width: 800px;
-}
-
-.bet-info h3 {
-  margin-top: 0;
-  color: #333;
-}
-
-.bet-info ul {
-  text-align: left;
-  padding-left: 20px;
-}
-
-.bet-info li {
-  margin-bottom: 8px;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .roulette-table-layout {
-    padding: 10px;
+@media (max-width: 980px) {
+  .table-copy,
+  .table-guidance {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-  .zero-bets, .side-bets {
-    flex-wrap: wrap;
+
+  .table-status {
+    align-items: flex-start;
   }
-  
-  .zero-cell {
-    width: 50px;
-    height: 50px;
+
+  .table-readout {
+    flex-direction: column;
+    gap: 0.4rem;
+    white-space: normal;
   }
-  
-  .number-cell {
-    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .table-shell {
+    padding: 0.7rem;
+    border-radius: 22px;
   }
-  
-  .number {
-    font-size: 14px;
-  }
-  
-  .bet-cell {
-    padding: 8px;
-    font-size: 11px;
+
+  .table-guidance {
+    padding: 0.8rem 0.9rem;
   }
 }

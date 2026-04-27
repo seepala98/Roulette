@@ -7,7 +7,7 @@ FROM nginx:alpine
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy our static frontend files
-COPY ../frontend/build/ /usr/share/nginx/html/
+COPY frontend/build/ /usr/share/nginx/html/
 
 # Expose port 80
 EXPOSE 80

@@ -71,7 +71,7 @@ class History(models.Model):
     """Records the outcome of each round."""
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='history')
     round_number = models.IntegerField()
-    winning_number = models.IntegerField() # 0 through 36
+    winning_number = models.IntegerField() # 0 through 36, with 37 representing 00
     payout_multiplier = models.FloatField(default=0.0) # e.g., 2.0 for 2:1, 1.0 for 1:1
     round_timestamp = models.DateTimeField(auto_now_add=True)
 

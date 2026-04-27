@@ -19,5 +19,5 @@ ENV PYTHONUNBUFFERED 1
 # Expose the port that Django will run on
 EXPOSE 8000
 
-# Command to run the server (Using Gunicorn is best practice)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "roulette_project.wsgi:application"]
+# Run migrations before starting the API process.
+CMD ["sh", "-c", "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 roulette_project.wsgi:application"]

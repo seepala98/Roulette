@@ -8,11 +8,52 @@ from rest_framework.response import Response
 from .models import Session, Player, Bet, History
 import random
 
+DOUBLE_ZERO = 37
+RED_NUMBERS = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
+COLUMN_NUMBERS = {
+    'col1': {3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36},
+    'col2': {2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35},
+    'col3': {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34},
+}
+
+
+def normalize_pocket_value(value):
+    """Convert roulette pocket labels into a stable internal integer."""
+    if value == '00':
+        return DOUBLE_ZERO
+
+    if value in [0, DOUBLE_ZERO]:
+        return value
+
+    if value is None:
+        raise ValueError("Pocket value is required.")
+
+    string_value = str(value).strip()
+    if string_value == '00':
+        return DOUBLE_ZERO
+
+    normalized_value = int(string_value)
+    if normalized_value < 0 or normalized_value > DOUBLE_ZERO:
+        raise ValueError("Pocket value is out of range.")
+    return normalized_value
+
+
+def parse_selection_pockets(selection):
+    if selection is None:
+        raise ValueError("Selection is required.")
+
+    return [normalize_pocket_value(token) for token in str(selection).split(',')]
+
+
+def format_winning_label(winning_number):
+    return '00' if winning_number == DOUBLE_ZERO else str(winning_number)
+
+
 def get_winning_number():
     """
-    Returns a random winning number for the roulette spin (0-36).
+    Returns a random winning pocket for American roulette (0-36 plus 00=37).
     """
-    return random.randint(0, 36)
+    return random.randint(0, DOUBLE_ZERO)
 
 def calculate_payout(bet_type, selection, winning_number, bet_amount):
     """
@@ -21,41 +62,28 @@ def calculate_payout(bet_type, selection, winning_number, bet_amount):
       multiplier: the payout multiplier (e.g., 35 for straight up, 2 for dozen, 1 for color)
       won: 1.0 if the bet wins, 0.0 if it loses
     """
-    # Convert winning_number to int if it's not already
     try:
-        winning_number = int(winning_number)
+        winning_number = normalize_pocket_value(winning_number)
     except (ValueError, TypeError):
-        # If conversion fails, treat as losing bet (though this shouldn't happen with valid data)
         return 0.0, 0.0
 
-    # Straight up bet: bet on a specific number
     if bet_type == 'STRAIGHT_UP':
         try:
-            selected_number = int(selection)
+            selected_number = normalize_pocket_value(selection)
         except (ValueError, TypeError):
             return 0.0, 0.0
-        if selected_number == winning_number:
-            return 35.0, 1.0
-        else:
+        return (35.0, 1.0) if selected_number == winning_number else (0.0, 0.0)
+
+    if bet_type in ['RED', 'BLACK']:
+        if winning_number in [0, DOUBLE_ZERO]:
             return 0.0, 0.0
 
-    # Color bets: RED or BLACK
-    if bet_type in ['RED', 'BLACK']:
-        # Define red numbers in American Roulette
-        red_numbers = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
-        is_red = winning_number in red_numbers
+        is_red = winning_number in RED_NUMBERS
         if bet_type == 'RED':
-            if is_red and winning_number != 0:  # 0 is neither red nor black
-                return 1.0, 1.0
-            else:
-                return 0.0, 0.0
-        else:  # BLACK
-            if not is_red and winning_number != 0:  # Black numbers are the rest except 0 and 00 (but we only have 0-36)
-                return 1.0, 1.0
-            else:
-                return 0.0, 0.0
+            return (1.0, 1.0) if is_red else (0.0, 0.0)
 
-# Dozen bets: 1-12, 13-24, 25-36
+        return (1.0, 1.0) if not is_red else (0.0, 0.0)
+
     if bet_type == 'DOZEN':
         try:
             if selection == '1st12':
@@ -68,92 +96,65 @@ def calculate_payout(bet_type, selection, winning_number, bet_amount):
                 low, high = map(int, selection.split('-'))
         except (ValueError, AttributeError):
             return 0.0, 0.0
-        if low <= winning_number <= high and winning_number != 0:
-            return 2.0, 1.0
-        else:
+        if winning_number in [0, DOUBLE_ZERO]:
             return 0.0, 0.0
-    
-    # Column bets: col1, col2, col3 (2:1 payout)
-    # On the roulette table, the 2:1 column bets are:
-    # col1 (left box): 3,6,9,12,15,18,21,24,27,30,33,36
-    # col2 (middle box): 2,5,8,11,14,17,20,23,26,29,32,35
-    # col3 (right box): 1,4,7,10,13,16,19,22,25,28,31,34
+
+        return (2.0, 1.0) if low <= winning_number <= high else (0.0, 0.0)
+
     if bet_type == 'COLUMN':
-        if winning_number == 0:
+        if winning_number in [0, DOUBLE_ZERO]:
             return 0.0, 0.0
-        col1_nums = {3,6,9,12,15,18,21,24,27,30,33,36}
-        col2_nums = {2,5,8,11,14,17,20,23,26,29,32,35}
-        col3_nums = {1,4,7,10,13,16,19,22,25,28,31,34}
-        if selection == 'col1' and winning_number in col1_nums:
-            return 2.0, 1.0
-        elif selection == 'col2' and winning_number in col2_nums:
-            return 2.0, 1.0
-        elif selection == 'col3' and winning_number in col3_nums:
-            return 2.0, 1.0
-        return 0.0, 0.0
-    
-    # Split bets: two adjacent numbers
+
+        winning_numbers = COLUMN_NUMBERS.get(selection)
+        if not winning_numbers:
+            return 0.0, 0.0
+
+        return (2.0, 1.0) if winning_number in winning_numbers else (0.0, 0.0)
+
     if bet_type == 'SPLIT':
         try:
-            nums = list(map(int, selection.split(',')))
-        except:
+            nums = parse_selection_pockets(selection)
+        except (ValueError, TypeError):
             return 0.0, 0.0
-        if winning_number in nums:
-            return 17.0, 1.0
-        return 0.0, 0.0
-    
-    # Street bets: 3 numbers in a row
+        return (17.0, 1.0) if winning_number in nums else (0.0, 0.0)
+
     if bet_type == 'STREET':
         try:
-            nums = list(map(int, selection.split(',')))
-        except:
+            nums = parse_selection_pockets(selection)
+        except (ValueError, TypeError):
             return 0.0, 0.0
-        if winning_number in nums:
-            return 11.0, 1.0
-        return 0.0, 0.0
-    
-    # Corner bets: 4 numbers in a square
+        return (11.0, 1.0) if winning_number in nums else (0.0, 0.0)
+
     if bet_type == 'CORNER':
         try:
-            nums = list(map(int, selection.split(',')))
-        except:
+            nums = parse_selection_pockets(selection)
+        except (ValueError, TypeError):
             return 0.0, 0.0
-        if winning_number in nums:
-            return 8.0, 1.0
-        return 0.0, 0.0
-    
-    # Line bets: 6 numbers (2 rows)
+        return (8.0, 1.0) if winning_number in nums else (0.0, 0.0)
+
     if bet_type == 'LINE':
         try:
-            nums = list(map(int, selection.split(',')))
-        except:
+            nums = parse_selection_pockets(selection)
+        except (ValueError, TypeError):
             return 0.0, 0.0
-        if winning_number in nums:
-            return 5.0, 1.0
-        return 0.0, 0.0
-    
-    # Even money bets
+        return (5.0, 1.0) if winning_number in nums else (0.0, 0.0)
+
     if bet_type == 'LO':
-        if 1 <= winning_number <= 18:
-            return 1.0, 1.0
-        return 0.0, 0.0
-    
+        return (1.0, 1.0) if 1 <= winning_number <= 18 else (0.0, 0.0)
+
     if bet_type == 'HI':
-        if 19 <= winning_number <= 36:
-            return 1.0, 1.0
-        return 0.0, 0.0
-    
+        return (1.0, 1.0) if 19 <= winning_number <= 36 else (0.0, 0.0)
+
     if bet_type == 'EVEN':
-        if winning_number != 0 and winning_number % 2 == 0:
-            return 1.0, 1.0
-        return 0.0, 0.0
-    
+        if winning_number in [0, DOUBLE_ZERO]:
+            return 0.0, 0.0
+        return (1.0, 1.0) if winning_number % 2 == 0 else (0.0, 0.0)
+
     if bet_type == 'ODD':
-        if winning_number % 2 == 1:
-            return 1.0, 1.0
-        return 0.0, 0.0
-    
-    # If bet_type is not recognized, return loss
+        if winning_number in [0, DOUBLE_ZERO]:
+            return 0.0, 0.0
+        return (1.0, 1.0) if winning_number % 2 == 1 else (0.0, 0.0)
+
     return 0.0, 0.0
 
 
@@ -275,6 +276,7 @@ class GameCycleViewSet(viewsets.ViewSet):
             return Response({
                 "success": True,
                 "winning_number": winning_number,
+                "winning_label": format_winning_label(winning_number),
                 "processed_bets": len(processed_bets),
                 "total_payout": total_payout,
                 "session_id": str(session.session_id),
@@ -420,6 +422,7 @@ class SessionAPIViewSet(viewsets.ViewSet):
                 'session_id': str(session.session_id),
                 'round_number': session.current_round,
                 'winning_number': winning_number,
+                'winning_label': format_winning_label(winning_number),
                 'total_payout': total_payout,
                 'bet_results': bet_results,
                 'player_chips': player_chips
