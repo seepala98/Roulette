@@ -23,7 +23,7 @@ setup:
 # Builds all services using the docker-compose file
 build:
 	@echo "--- 🧱 Building all services... ---"
-	docker compose -f $(COMPOSE_FILE) up --build --abort-on-container-exited
+	docker compose -f $(COMPOSE_FILE) up --build
 
 # --- Target: run ---
 # Starts all services and keeps them running

@@ -1,7 +1,6 @@
 # app/models.py
 
 from django.db import models
-from django.contrib.auth.models import User
 import uuid
 
 # --- 1. Session Model ---
@@ -9,6 +8,8 @@ class Session(models.Model):
     """Manages the unique game instances (boards)."""
     STATUS_CHOICES = [
         ('WAITING', 'Waiting for Players'),
+        ('BETTING', 'Betting Open'),
+        ('SPINNING', 'Wheel Spinning'),
         ('IN_PROGRESS', 'In Progress'),
         ('PAUSED', 'Paused'),
         ('FINISHED', 'Finished'),
@@ -17,6 +18,8 @@ class Session(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='WAITING')
     max_players = models.IntegerField(default=4)
     current_round = models.IntegerField(default=0)
+    betting_deadline = models.DateTimeField(null=True, blank=True)
+    betting_phase_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -35,6 +38,7 @@ class Player(models.Model):
     player_name = models.CharField(max_length=100)
     initial_budget = models.IntegerField(default=1000)
     current_chips = models.IntegerField(default=1000)
+    ready_to_spin = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

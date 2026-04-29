@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'channels',
+    'rest_framework',
     'roulette_api',
 ]
 
@@ -60,6 +62,7 @@ CORS_ALLOWED_ORIGINS = env.list(
     default=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'],
 )
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=True)
 
 ROOT_URLCONF = 'roulette_project.urls'
 
@@ -79,6 +82,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'roulette_project.wsgi.application'
+ASGI_APPLICATION = 'roulette_project.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
