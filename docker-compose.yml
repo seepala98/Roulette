@@ -20,17 +20,17 @@ services:
       context: .
       dockerfile: ./infra/Dockerfile.backend
     container_name: roulette_backend
-    ports:
-      - "8000:8000"
     environment:
       DATABASE_URL: postgres://rouletteuser:strongpassword@db:5432/roulette_db
       SECRET_KEY: ${SECRET_KEY:-roulette-dev-secret-key}
       DEBUG: ${DEBUG:-true}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend,0.0.0.0,roulette_frontend,frontend}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend,0.0.0.0,roulette_frontend,frontend,192.168.4.65}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.4.65:3000,http://192.168.4.65}
     depends_on:
       db:
         condition: service_healthy
+    ports:
+      - "8000:8000"
 
   frontend:
     build:

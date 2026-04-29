@@ -3,126 +3,204 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import {
   createSession,
   getSessionState,
-  placeBets,
-  runRound,
 } from '../services/gameService';
+import wsService, { generateUUID } from '../services/websocketService';
 
 const GameContext = createContext(null);
 
 export const useGameContext = () => useContext(GameContext);
 
-export const GameProvider = ({ children, initialSessionId = null }) => {
+function getOrCreatePlayerId() {
+  let pid = localStorage.getItem('roulette_player_id');
+  if (!pid) {
+    pid = generateUUID();
+    localStorage.setItem('roulette_player_id', pid);
+  }
+  return pid;
+}
+
+export const GameProvider = ({
+  children,
+  initialSessionId = null,
+  playerName = 'Player',
+  startingChips = 1000,
+}) => {
   const [gameState, setGameState] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [timerSeconds, setTimerSeconds] = useState(null);
+  const [phase, setPhase] = useState('waiting');
+  const [playerId] = useState(() => getOrCreatePlayerId());
+  const [sessionId, setSessionId] = useState(null);
+  const [wsStatus, setWsStatus] = useState('connecting');
+  const wsListenersRegistered = useRef(false);
+  const playerNameRef = useRef(playerName);
+  const startingChipsRef = useRef(startingChips);
+  playerNameRef.current = playerName;
+  startingChipsRef.current = startingChips;
 
-  const initializeSession = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
     setIsLoading(true);
     setError(null);
 
-    try {
-      const session = initialSessionId
-        ? await getSessionState(initialSessionId)
-        : await createSession();
-
-      setGameState({
-        ...session,
-        lastRoundResult: null,
-      });
-    } catch (initialLoadError) {
+    const init = async () => {
       try {
-        const fallbackSession = await createSession();
-        setGameState({
-          ...fallbackSession,
-          lastRoundResult: null,
-        });
-      } catch (creationError) {
-        setError(
-          'Unable to create a roulette session. Please verify the backend is running.',
-        );
-        console.error(creationError);
+        const session = initialSessionId
+          ? await getSessionState(initialSessionId)
+          : await createSession();
+        if (!cancelled) {
+          setGameState({ ...session, lastRoundResult: null });
+          setSessionId(session.sessionId);
+        }
+      } catch {
+        try {
+          const fallback = await createSession();
+          if (!cancelled) {
+            setGameState({ ...fallback, lastRoundResult: null });
+            setSessionId(fallback.sessionId);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setError('Unable to create a roulette session. Is the backend running?');
+            console.error(err);
+          }
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-
-      console.error(initialLoadError);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+    init();
+    return () => { cancelled = true; };
   }, [initialSessionId]);
 
   useEffect(() => {
-    initializeSession();
-  }, [initializeSession]);
+    if (!sessionId) return;
 
-  const refreshSession = useCallback(async () => {
-    if (!gameState || !gameState.sessionId) {
-      return null;
-    }
+    if (!wsListenersRegistered.current) {
+      wsListenersRegistered.current = true;
 
-    try {
-      const session = await getSessionState(gameState.sessionId);
-      setGameState((previous) => ({
-        ...previous,
-        ...session,
-      }));
-      return session;
-    } catch (refreshError) {
-      setError('Unable to refresh the current table state.');
-      console.error(refreshError);
-      return null;
-    }
-  }, [gameState]);
+      wsService.on('connected', () => {
+        setWsStatus('connected');
+      });
 
-  const placeBetsAndRunRound = useCallback(
-    async (userBets) => {
-      if (!gameState || !gameState.sessionId) {
-        setError('The roulette table is still initializing.');
-        return null;
-      }
+      wsService.on('disconnected', () => {
+        setWsStatus('disconnected');
+      });
 
-      if (userBets.length === 0) {
-        return null;
-      }
+      wsService.on('reconnecting', (data) => {
+        setWsStatus('reconnecting');
+      });
 
-      setIsLoading(true);
-      setError(null);
+      wsService.on('error', () => {
+        setWsStatus('error');
+      });
 
-      try {
-        await placeBets(gameState.sessionId, userBets);
-        const result = await runRound(gameState.sessionId);
+      wsService.on('joined_session', (data) => {
+        if (data.player_unique_id) {
+          localStorage.setItem('roulette_player_id', data.player_unique_id);
+        }
+        if (data.players) setPlayers(data.players);
+        setPhase('betting');
+        setWsStatus('connected');
+      });
 
-        setGameState((previous) => ({
-          ...previous,
-          currentRound:
-            result.round_number !== undefined
-              ? result.round_number
-              : previous.currentRound + 1,
-          status: 'WAITING',
-          lastRoundResult: result,
-        }));
+      wsService.on('player_joined', (data) => {
+        if (data.players) setPlayers(data.players);
+      });
 
-        return result;
-      } catch (roundError) {
-        const responseError =
-          roundError &&
-          roundError.response &&
-          roundError.response.data &&
-          roundError.response.data.error;
-        setError(
-          responseError || 'There was a problem processing this round.',
+      wsService.on('bet_placed', () => {});
+
+      wsService.on('bet_broadcast', () => {});
+
+      wsService.on('bet_removed', () => {});
+
+      wsService.on('timer_tick', (data) => {
+        setTimerSeconds(data.seconds_remaining);
+        setPhase('betting');
+      });
+
+      wsService.on('spin_result', (data) => {
+        setPhase('spinning');
+        setTimerSeconds(null);
+        setGameState((prev) =>
+          prev
+            ? {
+                ...prev,
+                lastRoundResult: data,
+                currentRound: data.round_number || prev.currentRound + 1,
+              }
+            : prev,
         );
-        console.error(roundError);
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
+        if (data.players) setPlayers(data.players);
+      });
+
+      wsService.on('new_round', () => {
+        setPhase('betting');
+        setTimerSeconds(null);
+        setGameState((prev) =>
+          prev ? { ...prev, status: 'WAITING' } : prev,
+        );
+      });
+
+      wsService.on('player_ready', (data) => {
+        if (data.all_ready) setPhase('spinning');
+      });
+    }
+
+    wsService.connect(sessionId, playerId);
+
+    wsService.send('join_session', {
+      player_unique_id: playerId,
+      player_name: playerNameRef.current,
+      initial_budget: startingChipsRef.current,
+    });
+
+    return () => {
+      wsService.disconnect();
+    };
+  }, [sessionId, playerId]);
+
+  const placeBet = useCallback(
+    (betType, selection, amount) => {
+      wsService.send('place_bet', {
+        player_unique_id: playerId,
+        bet_type: betType,
+        selection,
+        amount,
+      });
     },
-    [gameState],
+    [playerId],
   );
+
+  const undoBet = useCallback(
+    (betId) => {
+      wsService.send('undo_bet', {
+        player_unique_id: playerId,
+        bet_id: betId,
+      });
+    },
+    [playerId],
+  );
+
+  const clearBets = useCallback(() => {
+    wsService.send('clear_bets', {
+      player_unique_id: playerId,
+    });
+  }, [playerId]);
+
+  const markReady = useCallback(() => {
+    wsService.send('player_ready', {
+      player_unique_id: playerId,
+    });
+  }, [playerId]);
 
   return (
     <GameContext.Provider
@@ -130,9 +208,15 @@ export const GameProvider = ({ children, initialSessionId = null }) => {
         gameState,
         isLoading,
         error,
-        initializeSession,
-        placeBetsAndRunRound,
-        refreshSession,
+        players,
+        timerSeconds,
+        phase,
+        wsStatus,
+        placeBet,
+        undoBet,
+        clearBets,
+        markReady,
+        playerId,
       }}
     >
       {children}

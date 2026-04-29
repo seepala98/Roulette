@@ -1,23 +1,15 @@
-# infra/Dockerfile.backend
-# Use a Python image that matches the runtime environment
 FROM python:3.11-slim
 
 WORKDIR /app/backend
 
-# Copy only the requirements file to leverage Docker caching
 COPY backend/requirements.txt .
 
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire backend directory
 COPY backend/ .
 
-# Set environment variables (optional, but good practice)
 ENV PYTHONUNBUFFERED 1
 
-# Expose the port that Django will run on
 EXPOSE 8000
 
-# Run migrations before starting the API process.
-CMD ["sh", "-c", "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 roulette_project.wsgi:application"]
+CMD ["sh", "-c", "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 roulette_project.asgi:application"]
